@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-from openpyxl import Workbook
 import sys
 import configparser
 
@@ -35,10 +34,9 @@ data = process_sheet(input_path)
 def check_dir(directory:str):
     '''description for later'''
     if os.path.exists(output_path):
-        user_inp = input(f'''
-                         File {config['OutputFile']} already exists.
-                         \nInput "y" to continue & overwrite; "n" to exit.
-                         \nInput: ''')
+        user_inp = input(f'''File {config['OutputFile']} already exists.
+                        Input "y" to continue & overwrite; "n" to exit.
+                        Input: ''')
         
         if user_inp == 'y':
             pass
@@ -58,31 +56,54 @@ for idx, row in data.iterrows():
     # BIG NOTE: either ALL emails need to be listed properly !!! or possibly finding some hacked together way of checking the last name against the address but that isnt...
     emails = row['Instructor Email']
     emails_arr = emails.split('; ')
-    
-    for j, person in enumerate(instructor_arr):
 
-        access_type = [row['Access/Type'], row['Access/Type.1'], row['Access/Type.2']]
+    # checking the access type
+    access_type = [row['Access/Type'], row['Access/Type.1'], row['Access/Type.2']]
+    if access_type[0] == 'not owned': # could add or statements to check other two... but this works for now
+        continue
 
-        if access_type[0] == 'not owned': # could add or statements to check other two... but this works for now
+    # grabbing all the information for the book
+    book_info = [row['Title'].title()]
+    book_info.append(row['Ed']) if f'{row['Ed']}' != 'nan' else book_info.append('N/A')
+    book_info = [row['Title'].title(), row['Ed'], row['Author'].title(), [], []]
+    for k, access in enumerate(access_type):
+        if f'{access}' == 'nan':
             continue
-
-        book_info = [row['Title'].title(), row['Ed'], row['Author'].title(), [], []]
-        for k, access in enumerate(access_type):
-            if access == 'NaN':
-                continue
-            book_info[3].append(access) # adding the access type into an array
-            book_info[4].append(row['Link']) if k == 0 else book_info[4].append(row[f'Link.{k}']) # adding the links in
-
+        book_info[3].append(access) # adding the access type into an array
+        book_info[4].append(row['Link']) if k == 0 else book_info[4].append(row[f'Link.{k}']) # adding the links in
+    
+    # checking if the instructor already exists and handling data accordingly
+    for j, person in enumerate(instructor_arr):
         if person not in result_outline['Instructor']:
             result_outline['Instructor'].append(person)
             result_outline['Email'].append(emails_arr[j])
             result_outline['Books'].append([book_info])
         else:
-            result_outline
+            person_idx = result_outline['Instructor'].index(person)
+            result_outline['Books'][person_idx].append(book_info)
 
-    
+# convert to dataframe object
 result_data = pd.DataFrame(data=result_outline)
-result_data.to_excel(output_path) # writing the file to the output
+
+# open an xlsxwriter to be able to format the frame into a table
+writer = pd.ExcelWriter(output_path, engine='xlsxwriter')
+result_data.to_excel(writer, sheet_name='email list', startrow=1, header=False, index=False)
+
+workbook = writer.book
+worksheet = writer.sheets['email list']
+
+(max_row, max_col) = result_data.shape
+
+column_settings = []
+for header in result_data.columns:
+    column_settings.append({'header': header})
+
+worksheet.add_table(0, 0, max_row,max_col - 1, {'columns': column_settings})
+
+worksheet.set_column(0, max_col - 1, 12)
+writer.close() # close and output
+
+# result_data.to_excel(output_path) # writing the file to the output
 
 # notes for next time
 # we are looking to split this up into a sheet that organizes data by instructor
