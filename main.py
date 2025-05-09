@@ -63,14 +63,42 @@ for idx, row in data.iterrows():
         continue
 
     # grabbing all the information for the book
-    book_info = [row['Title'].title()]
-    book_info.append(row['Ed']) if f'{row['Ed']}' != 'nan' else book_info.append('N/A')
-    book_info = [row['Title'].title(), row['Ed'], row['Author'].title(), [], []]
+    edition_num = str(int(row['Ed'])) if pd.isna(row['Ed']) == False else edition_num = None
+
+    if edition_num[-1] == '1':
+        edition_num += 'st'
+    elif edition_num[-1] == '2':
+        edition_num += 'nd'
+    elif edition_num[-1] == '3':
+        edition_num += 'rd'
+    elif edition_num is not None:
+        edition_num += 'th'
+
+    book_string = f'{row['Title']}'
+    book_string += f'{edition_num} Edition' if edition_num is not None else ''
+    book_string += f'by {row['Author']} for {row['Course']}, available from '
+
+    book_info = [row['Title'].title(), edition_num, row['Author'].title(), [], [], [row['Course']]]
+
     for k, access in enumerate(access_type):
-        if f'{access}' == 'nan':
+        if pd.isna(access) == True:
             continue
         book_info[3].append(access) # adding the access type into an array
         book_info[4].append(row['Link']) if k == 0 else book_info[4].append(row[f'Link.{k}']) # adding the links in
+
+        if k > 0:
+            book_string += ' It is also available from '
+
+        if access == 'unlimited':
+            link_str = 'Link' if k == 0 else link_str = f'Link.{k}'
+            book_string += f'{row[link_str]} with an {access} user license.'
+
+        elif access == 'CDL':
+            # NOTE: This is supposed to have a specific number of users -- current version of the spreadsheet just lists CDL
+            link_str = 'Link' if k == 0 else link_str = f'Link.{k}'
+            book_string += f'{row[link_str]}. Online texts are first come, first serve, for one hour at a time, and are renewable so long as no one is on the waitlist.'
+
+        # TODO: other access types
     
     # checking if the instructor already exists and handling data accordingly
     for j, person in enumerate(instructor_arr):
