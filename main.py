@@ -3,12 +3,14 @@ import pandas as pd
 import sys
 import configparser
 
+
 # configure this script using the .ini file, should be much more readable this way
 full_config = configparser.ConfigParser()
 full_config.read('config.ini')
 config = full_config['DEFAULT'] # reading the DEFAULT section -- might change later to have multiple configs
 term = config['Term']
 curr_dir = os.path.dirname(__file__)
+
 
 # checking for blank input directories
 if config['InputDir'] is not None: 
@@ -21,11 +23,11 @@ if config['OutputDir'] is not None:
 else:
     output_path = os.path.join(curr_dir, config['OutputFile'])
 
-data = pd.read_excel(input_path)
 
-# sends a check to the user to make sure data is not overwritten
 def check_dir(directory:str):
-    '''description for later'''
+    '''If the output path already exists, sends a check to the user to make sure
+    they do not overwrite their already existing data.'''
+
     if os.path.exists(output_path):
         user_inp = input(f'''File {config['OutputFile']} already exists.
 Input "y" to continue & overwrite; "n" to exit.
@@ -36,32 +38,12 @@ Input: ''')
         else:
             sys.exit('\nExiting program.')
 
-check_dir(output_path)
 
-result_outline = {'Instructor' : [],
-                  'Email' : [],
-                  'Books' : [],
-                  'Book Output' : [],
-                  'Courses' : []}
+def get_edition_str(row):
+    '''Takes the current working row and checks it for the edition number, creating a string for it.'''
 
-# looking across the whole input spreadsheet
-for idx, row in data.iterrows():
-    instructors = row['Instructor']
-    instructor_arr = instructors.split('; ')
-
-    # BIG NOTE: either ALL emails need to be listed properly! or possibly finding some hacked together way of checking the last name against the address but that isnt...
-    emails = row['Instructor Email']
-    emails_arr = emails.split('; ')
-
-    # checking the access type
-    access_type = [row['Access/Type'], row['Access/Type.1'], row['Access/Type.2']]
-    if access_type[0] == 'not owned': # could add or statements to check other two... but this works for now
-        continue
-
-    # grabbing all the information for the book
     edition_num = str(int(row['Ed'])) if pd.isna(row['Ed']) == False else None
 
-    # edition string
     if edition_num is not None:
         if edition_num[-1] == '1':
             edition_num += 'st'
@@ -73,11 +55,18 @@ for idx, row in data.iterrows():
             edition_num += 'th'
 
         edition_num += ' Edition'
+    
+    return edition_num
+
+
+def get_course_arr(row):
+    '''Takes the current working row and extracts the course code and section, converting
+    it into a single array for usage.'''
 
     course_code = ''
     last_char = False
 
-    for char in row['Course']:
+    for char in row['Course Number and Section']:
         if char.isalpha():
             course_code += char
         elif char.isnumeric() and not last_char:
@@ -86,38 +75,163 @@ for idx, row in data.iterrows():
             last_char = True
         elif char.isnumeric():
             course_code += char
+        elif char == '-':
+            course_code += ' '
 
-    book_info = [row['Title'].title(), edition_num, row['Author'].title(), [], [], course_code]
+    course_arr = course_code.split(' ')
 
-    # access link handler
-    for k, access in enumerate(access_type):
-        if pd.isna(access) == True:
-            continue
-        book_info[3].append(access) # adding the access type into an array
-        book_info[4].append(row['Link']) if k == 0 else book_info[4].append(row[f'Link.{k}']) # adding the links in
+    # leaving out the section number, can revert this later if needed
+    course_arr = [course_arr[0], course_arr[1]]
 
-    # professor data handler
-    for j, person in enumerate(instructor_arr):
+    return course_arr
 
-        if person not in result_outline['Instructor']:
-            result_outline['Instructor'].append(person) # add new person
-            result_outline['Email'].append(emails_arr[j]) # add their email to the array
-            result_outline['Books'].append([book_info]) # add their own books array
-            result_outline['Courses'].append([book_info[5]]) # add their own courses array
 
-        else:
-            person_idx = result_outline['Instructor'].index(person)
-            result_outline['Books'][person_idx].append(book_info)
+def get_access_types(row):
+    '''Takes the current working row and extracts all of the copy amounts and access links.'''
 
-            if book_info[5] not in result_outline['Courses'][person_idx]:
-                result_outline['Courses'][person_idx].append(book_info[5])
+    return_row = [[], [], [], [], []]
+    if not pd.isna(row['Ebook Permalink']):
+        return_row[0].append(row['Ebook Permalink'])
+        return_row[0].append(row['Ebook Users'])
+        return_row[0].append(row['CDL'])
+    
+    if not pd.isna(row['Print Permalink 1']):
+        return_row[1].append(row['Print Permalink 1'])
+        return_row[1].append(row['Print 1 Copies'])
 
-# format data output
+    if not pd.isna(row['Print Permalink 2']):
+        return_row[2].append(row['Print Permalink 2'])
+        return_row[2].append(row['Print 2 Copies'])
+
+    if not pd.isna(row['BNC Permalink']):
+        return_row[3].append(row['BNC Permalink'])
+        return_row[3].append(row['BNC Copies'])
+
+    if not pd.isna(row['Audiobook Permalink']):
+        return_row[4].append(row['Audiobook Permalink'])
+
+    return return_row
+
+
+def get_access_email(book):
+    '''This function takes in a single books access data and reads across it to create the email
+    with the various links and listing for each title.'''
+
+    email_return = ''
+    scanned_appear = False
+    phyiscal_appear = False
+
+    # holding all the strings so it is easier to iterate through them in the proper order
+    ebook_list = ''
+    scan_list = ''
+    audio_list = ''
+    #video_list = ''
+    print_list = ''
+    #dvd_list = ''
+
+    # ebooks
+    if book[0]:
+        if book[0][2] == False:
+            if (book[0][1] == 'non-perm' or book[0][1] == 'unlimited'):
+                ebook_list += f'<li><a href="{book[0][0]}">Ebook</a>: unlimited simultaneous users</li>'
+            else:
+                user_str = 'users' if int(book[0][1]) != 1 else 'user'
+                ebook_list += f'<li><a href="{book[0][0]}">Ebook</a>: {book[0][1]} simultaneous {user_str}</li>'
+        
+    # CDL
+    if book[0]:
+        if book[0][2] == True:
+            scanned_appear = True
+            if (book[0][1] == 'non-perm' or book[0][1] == 'unlimited'):
+                scan_list += f'<li><a href="{book[0][0]}">Scanned Book</a>: unlimited simultaneous users</li>'
+            else:
+                user_str = 'users' if int(book[0][1]) != 1 else 'user'
+                scan_list += f'<li><a href="{book[0][0]}">Scanned Book</a>: {book[0][1]} simultaneous {user_str}</li>'
+
+    # print books
+    print_copies = 0
+    if book[1]:
+        print_copies += int(book[1][1])
+        print_link = book[1][0]
+
+    if book[2]:
+        print_copies += int(book[2][1])
+
+    if print_copies > 0:
+        phyiscal_appear = True
+        copy_str = 'copies' if print_copies != 1 else 'copy'
+        print_list += f'<li><a href="{print_link}">Print</a>: {print_copies} {copy_str} in Course Reserves'
+
+    # audiobooks
+    if book[4]:
+        audio_list += f'<li><a href="{book[4][0]}">Audiobook</a>'
+
+    access_listings = [ebook_list, scan_list, audio_list, print_list]
+    for listing in access_listings:
+        if listing != '':
+            email_return += listing
+
+    return email_return, scanned_appear, phyiscal_appear
+
+
+# read the data into the script
+data = pd.read_excel(input_path)
+
+# check the output directory
+check_dir(output_path)
+
+# set up the outline to grab all the necessary information
+result_outline = {'Instructor' : [],
+                  'Email' : [],
+                  'Books' : [],
+                  'Book Output' : [],
+                  'Courses' : []
+}
+
+# format data output for output excel sheet
 final_data = {'First Name' : [],
               'Last Name' : [],
               'Email' : [],
               'Book Output' : []
 }
+
+
+# looking across the whole input spreadsheet
+for idx, row in data.iterrows():
+
+    # checking whether or not it is available
+    if row['Found in Catalog?'] == 'no' or pd.isna(row['Found in Catalog?']) or row['Found in Catalog?'] == 'BNC only':
+        continue
+
+    instructor = str(row['Primary Instructor'])
+    email = str(row['Email Address'])
+
+    if instructor == '0' or email == '0':
+        continue
+
+    # grabbing the edition number, course code string, and access types/links
+    edition_num = get_edition_str(row)
+    course_arr = get_course_arr(row)
+    access_type = get_access_types(row)
+
+    # compile baseline information
+    book_info = [row['Title'].title(), edition_num, row['Author'].title(), access_type, course_arr, row['Year']]
+
+    # add new instructor to the outline
+    if instructor not in result_outline['Instructor']:
+        result_outline['Instructor'].append(instructor)
+        result_outline['Email'].append(email)
+        result_outline['Books'].append([book_info])
+        result_outline['Courses'].append([book_info[4]])
+
+    # add any new information for existing instructors
+    else:
+        person_idx = result_outline['Instructor'].index(instructor)
+        result_outline['Books'][person_idx].append(book_info)
+
+        if book_info[4] not in result_outline['Courses'][person_idx]:
+            result_outline['Courses'][person_idx].append(book_info[4])
+
 
 for instructor in result_outline['Instructor']:
     name_arr = instructor.split(', ')
@@ -133,86 +247,23 @@ for instructor in result_outline['Instructor']:
     scanned_appear = False
     phyiscal_appear = False
 
-    # the way this check is performed is really inefficient (for programming standards), so if program is slow, this is the first element to optimize as this is O(n^2) (if not worse)
-    # this can be done in a way that is O(n) (reading the books list once) rather than reading it for every course there is
-    # i forgot python says lists in dictionaries is bad (which is sound programming mind you) so i reworked the implementation based on that (this was originally going to use a hash, not lists)
     for k, course in enumerate(result_outline['Courses'][idx]):
         if k != 0:
             email_str += '<br>'
-        
-        course_arr = course.split(' ')
 
-        email_str += f'<b>{course}</b><br>Students can find all library materials by <a href="https://search.library.oregonstate.edu/discovery/search?query=any,contains,{course_arr[0]}%20{course_arr[1]}&tab=CourseReserves&search_scope=CourseReserves&vid=01ALLIANCE_OSU:OSU&lang=en&offset=0">searching course reserves for {course}</a>.<br><ul>'
+        email_str += f'<b>{course[0]} {course[1]}</b><br>Students can find all library materials by <a href="https://search.library.oregonstate.edu/discovery/search?query=any,contains,{course[0]}%20{course[1]}&tab=CourseReserves&search_scope=CourseReserves&vid=01ALLIANCE_OSU:OSU&lang=en&offset=0">searching course reserves for {course[0]} {course[1]}</a>.<br><ul>'
         for book in result_outline['Books'][idx]:
-            if book[5] != course:
+            if book[4] != course:
                 continue
 
             email_str += f'<li><em>{book[0]}</em>, {book[2]}'
             email_str += f', {book[1]}' if book[1] is not None else ''
-            email_str += '</li>' # NOTE: this is where publishing year goes, need spreadsheet update
-            email_str += '<ul>'
+            email_str += f', {book[5]}</li>'
 
-            # holding all the strings so it is easier to iterate through them then just add them back later to the email_str
-            ebook_list = ''
-            scan_list = ''
-            audio_list = ''
-            video_list = ''
-            print_list = ''
-            dvd_list = ''
-
-            # handling print in a special way since it can be either main collection or print reserves
-            print_location = ''
-            print_copies = 0
-
-            for j, access_type in enumerate(book[3]):
-
-                if access_type == 'unlimited':
-                    ebook_list += f'<li><a href="{book[4][j]}">Ebook</a>: unlimited simultaneous users</li>'
-
-                elif '-user' in access_type:
-                    scanned_appear = True
-                    user_arr = access_type.split('-')
-                    user_str = 'users' if int(user_arr[0]) != 1 else 'user'
-                    scan_list += f'<li><a href="{book[4][j]}">Scanned Book</a>: {user_arr[0]} simultaneous {user_str}</li>'
-
-                elif access_type == 'CDL':
-                    # NOTE: spreadsheet needs CDL user number update
-                    scanned_appear = True
-                    scan_list += f'<li><a href="{book[4][j]}">Scanned Book</a>: ??? simultaneous users</li>'
-
-                elif access_type == 'audio':
-                    audio_list += f'<li><a href="{book[4][j]}">Audiobook</a>: ???'
-
-                # streaming video..? need example of what that type is
-
-                elif access_type == 'print reserves':
-                    print_copies += 1
-                    if print_copies == 0:
-                        print_location = book[4][j]
-                
-                elif access_type == 'main collection': 
-                    print_copies += 1
-                    if print_copies == 0:
-                        print_location = book[4][j]
-
-                # else:
-                #     email_str += f'({access_type})'
-
-                #email_str += '</li>'
-            
-            # NOTE: physical copies have no permalink accessible right now on the spreadsheet, needs update
-            # NOTE: spreadsheet is also missing copy amounts so... yeah
-            if print_copies > 0:
-                phyiscal_appear = True
-                print_list += f'<li><a href="">Print</a>: ??? copy/copies at {print_location}'
-
-            access_listings = [ebook_list, scan_list, audio_list, video_list, print_list, dvd_list]
-            for listing in access_listings:
-                if listing != '':
-                    email_str += listing
-            
-            email_str += '</ul>'
-
+            # check access types and add new email pieces to the main email string
+            access_email, scanned_appear, phyiscal_appear = get_access_email(book[3])
+            if access_email != '':
+                email_str += f'<ul>{access_email}</ul>'
 
         email_str += '</ul>'
 
