@@ -7,7 +7,7 @@ import configparser
 # configure this script using the .ini file, should be much more readable this way
 full_config = configparser.ConfigParser()
 full_config.read('config.ini')
-config = full_config['DEFAULT'] # reading the DEFAULT section -- might change later to have multiple configs
+config = full_config['DEFAULT'] # reading the DEFAULT section
 term = config['Term']
 curr_dir = os.path.dirname(__file__)
 
@@ -28,7 +28,7 @@ def check_dir(directory:str):
     '''If the output path already exists, sends a check to the user to make sure
     they do not overwrite their already existing data.'''
 
-    if os.path.exists(output_path):
+    if os.path.exists(directory):
         user_inp = input(f'''File {config['OutputFile']} already exists.
 Input "y" to continue & overwrite; "n" to exit.
 Input: ''')
@@ -39,10 +39,23 @@ Input: ''')
             sys.exit('\nExiting program.')
 
 
+def duplicates_check():
+    ''''''
+
+    user_inp = input(f'''Would you like to remove duplicate ebook listings for each professor?
+Input "y" to remove duplicates; "n" to use data as is.
+Input: ''')
+    if user_inp == 'y':
+        return True
+    else:
+        return False
+
+
 def get_edition_str(row):
     '''Takes the current working row and checks it for the edition number, creating a string for it.'''
 
-    edition_num = str(int(row['Ed'])) if pd.isna(row['Ed']) == False else None
+    edition_num = str(row['Ed']) if pd.isna(row['Ed']) == False else None
+    th_list = ['4', '5', '6', '7', '8', '9', '0']
 
     if edition_num is not None:
         if edition_num[-1] == '1':
@@ -51,7 +64,7 @@ def get_edition_str(row):
             edition_num += 'nd'
         elif edition_num[-1] == '3':
             edition_num += 'rd'
-        else:
+        elif edition_num[-1] in th_list:
             edition_num += 'th'
 
         edition_num += ' Edition'
@@ -135,7 +148,13 @@ def get_access_email(book):
             if (book[0][1] == 'non-perm' or book[0][1] == 'unlimited'):
                 ebook_list += f'<li><a href="{book[0][0]}">Ebook</a>: unlimited simultaneous users</li>'
             else:
-                user_str = 'users' if int(book[0][1]) != 1 else 'user'
+                # adding some extra cases to prevent breaks when data is formatted weird
+                if not pd.isna(book[0][1]):
+                    user_str = 'users' if int(book[0][1]) != 1 else 'user'
+                else:
+                    book[0][1] = '???'
+                    user_str = 'users'
+
                 ebook_list += f'<li><a href="{book[0][0]}">Ebook</a>: {book[0][1]} simultaneous {user_str}</li>'
         
     # CDL
@@ -145,7 +164,13 @@ def get_access_email(book):
             if (book[0][1] == 'non-perm' or book[0][1] == 'unlimited'):
                 scan_list += f'<li><a href="{book[0][0]}">Scanned Book</a>: unlimited simultaneous users</li>'
             else:
-                user_str = 'users' if int(book[0][1]) != 1 else 'user'
+
+                if not pd.isna(book[0][1]):
+                    user_str = 'users' if int(book[0][1]) != 1 else 'user'
+                else:
+                    book[0][1] = '???'
+                    user_str = 'users'
+
                 scan_list += f'<li><a href="{book[0][0]}">Scanned Book</a>: {book[0][1]} simultaneous {user_str}</li>'
 
     # print books
@@ -180,6 +205,9 @@ data = pd.read_excel(input_path)
 # check the output directory
 check_dir(output_path)
 
+# check if the user wants to remove duplicates
+remove_duplicates = duplicates_check()
+
 # set up the outline to grab all the necessary information
 result_outline = {'Instructor' : [],
                   'Email' : [],
@@ -206,7 +234,7 @@ for idx, row in data.iterrows():
     instructor = str(row['Primary Instructor'])
     email = str(row['Email Address'])
 
-    if instructor == '0' or email == '0':
+    if instructor == '0' or email == '0' or pd.isna(row['Primary Instructor']) or pd.isna(row['Email Address']):
         continue
 
     # grabbing the edition number, course code string, and access types/links
@@ -214,8 +242,12 @@ for idx, row in data.iterrows():
     course_arr = get_course_arr(row)
     access_type = get_access_types(row)
 
-    # compile baseline information
-    book_info = [row['Title'].title(), edition_num, row['Author'].title(), access_type, course_arr, row['Year']]
+    # compile baseline information + remove blank space
+    title = row['Title'].title()
+    title = title[:-1] if title[-1] == ' ' else title
+    author = row['Author'].title()
+    author = author[:-1] if author[-1] == ' ' else author
+    book_info = [title, edition_num, author, access_type, course_arr, row['Year']]
 
     # add new instructor to the outline
     if instructor not in result_outline['Instructor']:
@@ -251,19 +283,41 @@ for instructor in result_outline['Instructor']:
         if k != 0:
             email_str += '<br>'
 
+        used_books = []
         email_str += f'<b>{course[0]} {course[1]}</b><br>Students can find all library materials by <a href="https://search.library.oregonstate.edu/discovery/search?query=any,contains,{course[0]}%20{course[1]}&tab=CourseReserves&search_scope=CourseReserves&vid=01ALLIANCE_OSU:OSU&lang=en&offset=0">searching course reserves for {course[0]} {course[1]}</a>.<br><ul>'
         for book in result_outline['Books'][idx]:
             if book[4] != course:
                 continue
 
-            email_str += f'<li><em>{book[0]}</em>, {book[2]}'
+            book_title = book[0]
+
+            cleaner_list = [' (Cei)', '(Loose-Leaf)', 'Loose-Leaf','Ebook - Lifetime Duration', 'Ebook (Lifetime)', 'Ebook (180 days)', 'Ebook (150 days)', 'Ebook (120 days)', 'Ebook - Lifetime Access', 'Ebook -Lifetime Access', 'Ebook - Lifetime', 'Ebook - 180Days', '[Qr]', '[Nbs]', '(Cei)']
+
+            if remove_duplicates:
+                for phrase in cleaner_list:
+                    book_title = book_title.replace(phrase.title(), '')
+
+            while book_title[-1] == ' ':
+                book_title = book_title[:-1]
+
+            last_char = ''
+            for i, character in enumerate(book_title):
+                if (character == 'S' or character == 'L') and last_char == "'":
+                    book_title[i] = book_title[i].lower()
+
+            if book_title in used_books and remove_duplicates:
+                continue
+
+            email_str += f'<li><em>{book_title}</em>, {book[2]}'
             email_str += f', {book[1]}' if book[1] is not None else ''
-            email_str += f', {book[5]}</li>'
+            email_str += f', {book[5]}</li>' if not pd.isna(book[5]) else '</li>'
 
             # check access types and add new email pieces to the main email string
             access_email, scanned_appear, phyiscal_appear = get_access_email(book[3])
             if access_email != '':
                 email_str += f'<ul>{access_email}</ul>'
+
+            used_books.append(book_title)
 
         email_str += '</ul>'
 
