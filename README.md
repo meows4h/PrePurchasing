@@ -9,7 +9,7 @@ The only python package/library this script needs is pandas. Regardless, feel fr
 
 By default, the config is configured to intake an `input.xlsx` file and output an `output.xlsx` file. This can be changed in the `config.ini` file.
 
-## Using the Script
+## General Script Usage
 To run the script, you can either use `run.bat` or run it using python from a command line.
 
 If you already have a matching output file in the same output directory, it will ask to confirm that you wish to overwrite it.
@@ -20,4 +20,24 @@ After this, it will run, if it has debug on, it will spit out a ton of entries i
 
 Finally, you will take this output and move it into the SharePoint folder for use in the flow. Running it directly from the flow will send the formatted emails.
 
-This is still a big work in progress and this README likely needs some more specifics and cleanup.
+## Full Step by Step Guide
+### Script Portion
+1. Download the full or part of the Pre-Purchasing sheet as a CSV file.
+2. Export this as an .xlsx file named `input.xlsx` (or whichever name you set in `config.ini`).
+3. Move the file to the directory of the python script (or to where you set the input directory).
+4. If you have not already, run `install.bat` (or install pandas via pip).
+5. Run `run.bat` (or `main.py` via the command line).
+6. You may be asked if you wish to overwrite the output file, hit yes or no depending on what you'd like.
+7. You will be asked if you wish to remove duplicates, enter 'y' to indicate yes.
+8. The script will run, if debug is enabled in `config.ini` it will print all skipped entries.
+9. There will now be a file named `output.xlsx` (or whichever name you set in `config.ini`).
+
+### Power Automate Portion
+1. Take this output file and feel free to rename it to what seems right (i.e. Summer25 Emails)
+2. Upload the file to the appropriate folder of the SharePoint.
+3. Go to the Power Automate Pre-Purchasing Flow, click on edit, and click on "List rows present in a table".
+4. Here you will select "Group - OSU Libraries and Press" and "Documents" for the first two boxes if they are not already populated, if they are, continue.
+5. The third box is to the directory of where the file is, feel free to click through until you find it (i.e. /LEAD/eTextbooks project/Summer25 Emails.xlsx).
+6. Finally, click on the last box and make sure "Table1" is selected.
+7. For the email formatting, go into the "Apply to each" tab and into the "Send an email from a shared inbox", make sure the Subject is correct, as well as the email format.
+8. Hit save and then feel free to run the Flow, it will send out all the emails listed in the spreadsheet generated from the script, all of them will fill the Drafts before being sent out in batches.
