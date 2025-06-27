@@ -22,11 +22,11 @@ Finally, you will take this output and move it into the SharePoint folder for us
 
 ## Full Step by Step Guide
 ### Script Portion
-1. Download the full or part of the Pre-Purchasing sheet as a CSV file.
-2. Export this as an .xlsx file named `input.xlsx` (or whichever name you set in `config.ini`).
+1. Download the full or part of the Pre-Purchasing sheet by going to File -> Create a Copy -> Download a Copy.
+2. Rename the file to `input.xlsx` (or whichever name you set in `config.ini`).
 3. Move the file to the directory of the python script (or to where you set the input directory).
 4. If you have not already, run `install.bat` (or install pandas via pip).
-5. Run `run.bat` (or `main.py` via the command line).
+5. Run `run.bat` (or `main.py` via the command line). (Note: Running this for the first time may have some lag, be patient! If you need to restart it, press Ctrl + C once or twice to stop the program)
 6. You may be asked if you wish to overwrite the output file, hit yes or no depending on what you'd like.
 7. You will be asked if you wish to remove duplicates, enter 'y' to indicate yes.
 8. The script will run, if debug is enabled in `config.ini` it will print all skipped entries.
@@ -35,7 +35,7 @@ Finally, you will take this output and move it into the SharePoint folder for us
 ### Power Automate Portion
 1. Take this output file and feel free to rename it to what seems right (i.e. Summer25 Emails)
 2. Upload the file to the appropriate folder of the SharePoint.
-3. Go to the Power Automate Pre-Purchasing Flow, click on edit, and click on "List rows present in a table".
+3. Go to the Power Automate Pre-Purchasing Flow, click on edit, and click on "List rows present in a table". (Find this Flow at https://make.powerautomate.com/environments/Default-ce6d05e1-3c5e-4d62-87a8-4c4a2713c113/flows/shared/286b5cad-8ed1-48d6-9358-5ab72464b029/details?v3=false)
 4. Here you will select "Group - OSU Libraries and Press" and "Documents" for the first two boxes if they are not already populated, if they are, continue.
 5. The third box is to the directory of where the file is, feel free to click through until you find it (i.e. /LEAD/eTextbooks project/Summer25 Emails.xlsx).
 6. Finally, click on the last box and make sure "Table1" is selected.
