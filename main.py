@@ -3,7 +3,6 @@ import pandas as pd
 import sys
 import configparser
 
-
 # configure this script using the .ini file, should be much more readable this way
 full_config = configparser.ConfigParser()
 full_config.read('config.ini')
@@ -11,6 +10,8 @@ config = full_config['DEFAULT'] # reading the DEFAULT section
 term = config['Term']
 debug = config['Debug']
 curr_dir = os.path.dirname(__file__)
+
+if debug == 'False': debug = False
 
 if debug: print('Debug texts are active.')
 
@@ -53,10 +54,10 @@ Input: ''')
         return False
 
 
-def get_edition_str(row):
+def get_edition_str(row, row_name):
     '''Takes the current working row and checks it for the edition number, creating a string for it.'''
 
-    edition_num = str(row['Ed']) if pd.isna(row['Ed']) == False else None
+    edition_num = str(row[row_name]) if pd.isna(row[row_name]) == False else None
     th_list = ['4', '5', '6', '7', '8', '9', '0']
 
     if edition_num is not None:
@@ -187,11 +188,11 @@ def get_access_email(book):
     if print_copies > 0:
         phyiscal_appear = True
         copy_str = 'copies' if print_copies != 1 else 'copy'
-        print_list += f'<li><a href="{print_link}">Print</a>: {print_copies} {copy_str} in Course Reserves'
+        print_list += f'<li><a href="{print_link}">Print</a>: {print_copies} {copy_str} in Course Reserves</li>'
 
     # audiobooks
     if book[4]:
-        audio_list += f'<li><a href="{book[4][0]}">Audiobook</a>'
+        audio_list += f'<li><a href="{book[4][0]}">Audiobook</a> (limited users)</li>'
 
     access_listings = [ebook_list, scan_list, audio_list, print_list]
     for listing in access_listings:
@@ -247,7 +248,7 @@ for idx, row in data.iterrows():
         continue
 
     # grabbing the edition number, course code string, and access types/links
-    edition_num = get_edition_str(row)
+    edition_num = get_edition_str(row, 'Ed')
     course_arr = get_course_arr(row)
     access_type = get_access_types(row)
 
@@ -338,6 +339,9 @@ for instructor in result_outline['Instructor']:
                     book_title = ''.join(temp_list)
                 last_char = character
 
+            if ' Of ' in book_title:
+                book_title = book_title.replace(' Of ', ' of ')
+
             # skip if duplicate
             if book_title in used_books and remove_duplicates:
                 continue
@@ -359,6 +363,8 @@ for instructor in result_outline['Instructor']:
     # checking whether or not these specific cases have appeared for this professor
     if scanned_appear: 
         email_str += '<br>Scanned books are first come, first serve, for one hour at a time and use a waitlist. There is no limit to the number of renewals if no one is in the waitlist.'
+    if scanned_appear and phyiscal_appear:
+        email_str += '<br>'
     if phyiscal_appear:
         email_str += '<br>Physical copies are available for checkout at the Borrowing & Information desk for three hours at a time.'
 
