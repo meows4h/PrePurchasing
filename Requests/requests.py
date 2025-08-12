@@ -1,3 +1,18 @@
+# NOTE: 8/11/25
+# new bug as a result of new intake method for course code
+# seems to only affect single course listings
+# probably has to do with length checker..? idk double check this
+
+# NOTE: 8/8/25
+# fix the course input for using the / symbol
+# also since course section is not included
+
+# NOTE: 8/6/25
+# add OverDrive license processing -> OC/OU = single user ebook
+# waiting for what the language would be for both / other OverDrive licenses
+# looking at de-deuping prepurchasing sheets + pulling in data from other sheets
+# looking @ alma overlap and collection
+
 # NOTE : 7/10/25
 # is it possible to have the license section become a user # / copy amount section?
 # adding cases for errors / warnings
@@ -29,7 +44,7 @@ if feedback == 'False': feedback = False
 if skiplinks == 'False': skiplinks = False
 
 if debug: print('Debug texts are active.')
-if feedback: print('Sheet feedback is active.') 
+if feedback: print('Sheet feedback is active.')
 else: print('Sheet feedback is not active. Please turn this on in the config to see suggested sheet changes.')
 
 # checking for blank input directories
@@ -53,7 +68,7 @@ def check_dir(directory:str, config):
         user_inp = input(f'''File {config['OutputFile']} already exists.
 Input "y" to continue & overwrite; "n" to exit.
 Input: ''')
-        
+
         if user_inp == 'y':
             pass
         else:
@@ -73,12 +88,24 @@ Input: ''')
 
 
 def get_edition_str(row, row_name):
-    '''Takes the current working row and checks it for the edition number, creating a string for it.'''
+    '''Takes the current working row and checks it for the edition number,
+       creating a string for it.'''
 
-    edition_num = str(row[row_name]) if pd.isna(row[row_name]) == False else None
+    edition_num = str(row[row_name]) if pd.isna(row[row_name]) is False else None
     th_list = ['4', '5', '6', '7', '8', '9', '0']
+    replace_list = ['st', 'nd', 'rd', 'th', 'ed', 'Edition']
+
+    double_check = False  # double checking that it is not an invalid string to parse
 
     if edition_num is not None:
+
+        # removing weird inputs for editions
+        for replacement in replace_list:
+            edition_num = edition_num.replace(replacement, '')
+
+        if ' ' in edition_num:
+            double_check = True
+
         if edition_num[-1] == '1':
             edition_num += 'st'
         elif edition_num[-1] == '2':
@@ -89,57 +116,82 @@ def get_edition_str(row, row_name):
             edition_num += 'th'
 
         edition_num += ' Edition'
-    
+
+    if double_check:
+        edition_num = None
+        if feedback: print(f'Warning: Book has odd edition number, {row["Title"]} by {row["Author"]} (skipping adding edition number)')
+    elif edition_num is None:
+        if feedback: print(f'Warning: Book missing edition number, {row["Title"]} by {row["Author"]} (skipping adding edition number)')
+
     return edition_num
 
 
 def get_course_arr(row, row_name):
-    '''Takes the current working row and extracts the course code and section, converting
-    it into a single array for usage.'''
+    '''Takes the current working row and extracts the course code(s),
+       converting it into a single array for usage.'''
 
     course_code = ''
-    last_char = False
+    course_arr = [[], []]  # list 1 stores subject, list 2 stores number
+    subject_done = False
 
-    for char in row[row_name]:
+    for idx, char in enumerate(row[row_name]):
+        # make sure each letter gets added
         if char.isalpha():
             course_code += char
-        elif char.isnumeric() and not last_char:
+
+        # if the subject piece is just finishing, add a space
+        elif char.isnumeric() and not subject_done:
             course_code += ' '
             course_code += char
-            last_char = True
+            subject_done = True
+
+        # add each number
         elif char.isnumeric():
             course_code += char
-        elif char == '-':
-            course_code += ' '
 
-    course_arr = course_code.split(' ')
+        # if a slash is present, add the individual course
+        elif char == '/' or char == '\\':
+            course_temp = course_code.split(' ')
+            course_arr[0].append(course_temp[0])
+            course_arr[1].append(course_temp[1])
+            subject_done = False
 
-    # leaving out the section number, can revert this later if needed
-    course_arr = [course_arr[0], course_arr[1]]
+            # save the subject if it is two number codes
+            # otherwise remove it
+            if len(row[row_name]) > idx + 1:
+                if row[row_name][idx + 1].isnumeric():
+                    course_code = course_temp[0]
+                else:
+                    course_code = ''
 
     return course_arr
 
 
 def get_access_types(row):
-    '''Takes the current working row and extracts all of the copy amounts and access links.'''
+    '''Takes the current working row and extracts
+       all of the copy amounts and access links.'''
 
     # ebook, scan, physical book, streaming video, other
     format = row['Format']
     license = row['License (Electronic-Only)'] if not pd.isna(row['License (Electronic-Only)']) else ''
     permalink = row['PERMALINK'] if not pd.isna(row['PERMALINK']) else ''
+    print_copies = row['Total Print Copies'] if not pd.isna(row['Total Print Copies']) else ''
 
-    return_row = [format, license, permalink]
+    return_row = [format, license, permalink, print_copies]
 
     return return_row
 
 
 def get_access_email(book):
-    '''This function takes in a single books access data and reads across it to create the email
-    with the various links and listing for each title.'''
+    '''This function takes in a single books access data and reads across it
+       to create an email with the various links and listing for each title.'''
 
     scanned_appear = False
     phyiscal_appear = False
     listing = ''
+
+    # somewhere under ebook / scan, the license type "OverDrive (OC/OU)"
+    # and "OverDrive (Other)" may be used, this is where it would be added
 
     # ebooks
     if book[0] == 'ebook':
@@ -155,7 +207,7 @@ def get_access_email(book):
                 user_str = 'users'
 
             listing = f'<li><a href="{book[2]}">Ebook</a>: {user_arr[0]} simultaneous {user_str}</li>'
-        
+
     # scan / cdl
     elif book[0] == 'scan':
         scanned_appear = True
@@ -174,21 +226,19 @@ def get_access_email(book):
     # print books
     elif book[0] == 'physical book':
         phyiscal_appear = True
-        # ????????
-        print_copies = 1000000000 # no intake for this yet
+        print_copies = int(book[3])
         copy_str = 'copies' if print_copies != 1 else 'copy'
-        listing = f'<li><a href="{book[2]}">Print</a>: [NUM COPIES] [{copy_str}] in Course Reserves</li>'
+        listing = f'<li><a href="{book[2]}">Print</a>: {print_copies} {copy_str} in Course Reserves</li>'
 
     # video
     elif book[0] == 'streaming video':
         listing = f'<li><a href="{book[2]}">Streaming Video</a></li>'
 
     # audiobooks
-    elif book[0] == '????????':
-        listing = f'<li><a href="{book[4][0]}">Audiobook</a> (limited users)</li>'
+    elif book[0] == 'audiobook':
+        listing = f'<li><a href="{book[2]}">Audiobook</a> (limited users)</li>'
 
     # removing empty links from the html
-    # if debug: print(f'LISTING DEBUG: {listing}')
     if '<a href="">' in listing:
         listing = listing.replace('<a href="">', '')
         listing = listing.replace('</a>', '')
@@ -206,19 +256,17 @@ check_dir(output_path, config)
 remove_duplicates = duplicates_check()
 
 # set up the outline to grab all the necessary information
-result_outline = {'Instructor' : [],
-                  'Email' : [],
-                  'Books' : [],
-                  'Book Output' : [],
-                  'Courses' : []
-}
+result_outline = {'Instructor': [],
+                  'Email': [],
+                  'Books': [],
+                  'Book Output': [],
+                  'Courses': []}
 
 # format data output for output excel sheet
-final_data = {'First Name' : [],
-              'Last Name' : [],
-              'Email' : [],
-              'Book Output' : []
-}
+final_data = {'First Name': [],
+              'Last Name': [],
+              'Email': [],
+              'Book Output': []}
 
 
 # looking across the whole input spreadsheet
@@ -243,7 +291,7 @@ for idx, row in data.iterrows():
         continue
 
     # values to use for multiple instructors
-    cont_flag = False # if there are multiple instructors and it cannot be parsed, this flag is used to skip this book listing
+    cont_flag = False  # flag used for skipping unparseable instructor fields
     instructor_arr = []
     email_arr = []
 
@@ -267,7 +315,7 @@ for idx, row in data.iterrows():
         else:
             if feedback: print(f'Error: Unable to parse professor name into first / last (Possibly multiple names? Please split by commas) ({instructor}) E1') 
             continue
-    
+
     # this catches single names using a single comma between them
     # i.e. "LastName, FirstName", however the check continues if there are more commas
     elif len(name_arr) == 2:
@@ -304,13 +352,13 @@ for idx, row in data.iterrows():
                 cont_flag = True
                 break
             email_arr.append(email_temp[idx])
-        
+
         if cont_flag: continue
 
     ### NOTE: end of code that likely needs to be overhauled ###
 
     else:
-        if feedback: print(f'Error: Unable to parse professor name into first / last (Possibly multiple names? Please split by commas) ({instructor}) E4') 
+        if feedback: print(f'Error: Unable to parse professor name into first / last (Possibly multiple names? Please split by commas) ({instructor}) E4')
         continue
 
     # grabbing the edition number, course code string, and access types/links
@@ -323,24 +371,33 @@ for idx, row in data.iterrows():
     title = title[:-1] if title[-1] == ' ' else title
     author = row['Author'].title()
     author = author[:-1] if author[-1] == ' ' else author
-    book_info = [title, edition_num, author, access_type, course_arr, row['Date Pub.']]
 
     # iterating through all instructors in case of multiple
     for idx, instruct_temp in enumerate(instructor_arr):
-    # add new instructor to the outline
+
+        # add new instructor to the outline
         if instruct_temp not in result_outline['Instructor']:
-            result_outline['Instructor'].append(instruct_temp)
-            result_outline['Email'].append(email_arr[idx])
-            result_outline['Books'].append([book_info])
-            result_outline['Courses'].append([book_info[4]])
+            # iterating through each course in case of multiple courses
+            for kdx in range(len(course_arr[0])):
+                course_code = [course_arr[0][kdx], course_arr[1][kdx]]
+                book_info = [title, edition_num, author, access_type, course_code, row['Date Pub.']]
+
+                result_outline['Instructor'].append(instruct_temp)
+                result_outline['Email'].append(email_arr[idx])
+                result_outline['Books'].append([book_info])
+                result_outline['Courses'].append([course_code])
 
         # add any new information for existing instructors
         else:
-            person_idx = result_outline['Instructor'].index(instruct_temp)
-            result_outline['Books'][person_idx].append(book_info)
+            for kdx in range(len(course_arr[0])):
+                course_code = [course_arr[0][kdx], course_arr[1][kdx]]
+                book_info = [title, edition_num, author, access_type, course_code, row['Date Pub.']]
 
-            if book_info[4] not in result_outline['Courses'][person_idx]:
-                result_outline['Courses'][person_idx].append(book_info[4])
+                person_idx = result_outline['Instructor'].index(instruct_temp)
+                result_outline['Books'][person_idx].append(book_info)
+
+                if course_code not in result_outline['Courses'][person_idx]:
+                    result_outline['Courses'][person_idx].append(course_code)
 
 
 # taking the result outline and finalizing it into an output for email
@@ -351,7 +408,7 @@ for instructor in result_outline['Instructor']:
     name_arr = instructor.strip().split(',')
     for name in name_arr:
         name = name.strip()
-    #if debug: print(f'CHECKING NAME ARRAY: {name_arr}')
+
     first_name = name_arr[1]
     last_name = name_arr[0]
 
@@ -364,14 +421,14 @@ for instructor in result_outline['Instructor']:
     # for each course the instructor is under
     for k, course in enumerate(result_outline['Courses'][idx]):
 
-        course_str = '' # holding the string for the course book information
-        
+        course_str = ''  # holding the string for the course book information
+
         # adding a break space if this is not the first subject found
         if k != 0:
             course_str += '<br>'
 
         course_str += f'<b>{course[0]} {course[1]}</b><br>Students can find all library materials by <a href="https://search.library.oregonstate.edu/discovery/search?query=any,contains,{course[0]}%20{course[1]}&tab=CourseReserves&search_scope=CourseReserves&vid=01ALLIANCE_OSU:OSU&lang=en&offset=0">searching course reserves for {course[0]} {course[1]}</a>.<br><ul>'
-        book_list_str = '' # temp string to hold book info for the course, to be checked later
+        book_list_str = ''  # temp string to hold book info for the course, to be checked later
 
         # for each book in that course
         used_books = []
@@ -388,9 +445,9 @@ for instructor in result_outline['Instructor']:
             # skipping books not in the current course
             if book_course != course:
                 continue
-            
+
             # removing these repeated tags
-            cleaner_list = [' (Cei)', '(Loose-Leaf)', 'Loose-Leaf','Ebook - Lifetime Duration', 'Ebook(5 Yr Access)', 'Ebook (Lifetime)', 'Ebook (180 days)', 'Ebook (150 days)', 'Ebook (120 days)', 'Ebook - Lifetime Access', 'Ebook -Lifetime Access', 'Ebook - Lifetime', 'Ebook - 180Days', 'Etext W/Connect Access Code', '[Qr]', '[Nbs]', '(Cei)', '(Ll)', 'W/1 Term Access Code Pkg', 'W/1 Year Access Code Pkg', 'W/2 Year Access Code Pkg', '1 Term Access Code', '1 Year Access Code', '2 Year Access Code', 'Ebook']
+            cleaner_list = [' (Cei)', '(Loose-Leaf)', 'Loose-Leaf', 'Ebook - Lifetime Duration', 'Ebook(5 Yr Access)', 'Ebook (Lifetime)', 'Ebook (180 days)', 'Ebook (150 days)', 'Ebook (120 days)', 'Ebook - Lifetime Access', 'Ebook -Lifetime Access', 'Ebook - Lifetime', 'Ebook - 180Days', 'Etext W/Connect Access Code', '[Qr]', '[Nbs]', '(Cei)', '(Ll)', 'W/1 Term Access Code Pkg', 'W/1 Year Access Code Pkg', 'W/2 Year Access Code Pkg', '1 Term Access Code', '1 Year Access Code', '2 Year Access Code', 'Ebook']
             if remove_duplicates:
                 for phrase in cleaner_list:
                     book_title = book_title.replace(phrase.title(), '')
@@ -427,10 +484,10 @@ for instructor in result_outline['Instructor']:
             if pd.isna(book_access[2]):
                 if feedback and skiplinks: 
                     print(f'Warning: Missing permalink for {book_title} by {book_author} ({last_name}) [Nothing listed.]')
-                elif feedback: # make sure feedback is printed
+                elif feedback:  # make sure feedback is printed
                     print(f'Error: Missing permalink for {book_title} by {book_author} ({last_name}) [Nothing listed.]')
                     continue
-                else: # still make sure to skip no matter what if skiplinks is false
+                else:  # still make sure to skip no matter what if skiplinks is false
                     continue
 
             elif 'https://search' != book_access[2][0:14]:
@@ -438,6 +495,13 @@ for instructor in result_outline['Instructor']:
                     print(f'Warning: Missing permalink for {book_title} by {book_author} ({last_name}) [Not appropriate link.]')
                 elif feedback:
                     print(f'Error: Missing permalink for {book_title} by {book_author} ({last_name}) [Not appropriate link.]')
+                    continue
+                else:
+                    continue
+
+            if book_access[0] == 'physical book' and book_access[3] == '':
+                if feedback:
+                    print(f'Error: Missing physical book count for {book_title} by {book_author} ({last_name})')
                     continue
                 else:
                     continue
@@ -464,7 +528,7 @@ for instructor in result_outline['Instructor']:
             continue
 
     # checking whether or not these specific cases have appeared for this professor
-    if scanned_appear: 
+    if scanned_appear:
         email_str += '<br>Scanned books are first come, first serve, for one hour at a time and use a waitlist. There is no limit to the number of renewals if no one is in the waitlist.'
     if scanned_appear and phyiscal_appear:
         email_str += '<br>'
@@ -496,7 +560,7 @@ column_settings = []
 for header in result_data.columns:
     column_settings.append({'header': header})
 
-worksheet.add_table(0, 0, max_row,max_col - 1, {'columns': column_settings})
+worksheet.add_table(0, 0, max_row, max_col - 1, {'columns': column_settings})
 
 worksheet.set_column(0, max_col - 1, 12)
-writer.close() # close and output
+writer.close()  # close and output
