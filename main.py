@@ -3,10 +3,11 @@ import pandas as pd
 import sys
 import configparser
 
-# configure this script using the .ini file, should be much more readable this way
+# configure this script using the .ini file
+# should be easier to work with this way
 full_config = configparser.ConfigParser()
 full_config.read('config.ini')
-config = full_config['DEFAULT'] # reading the DEFAULT section
+config = full_config['DEFAULT']  # reading the DEFAULT section
 term = config['Term']
 debug = config['Debug']
 curr_dir = os.path.dirname(__file__)
@@ -17,7 +18,7 @@ if debug: print('Debug texts are active.')
 
 # checking for blank input directories
 if config['InputDir'] is not None: 
-    input_path = os.path.join(curr_dir, config['InputDir'], config['InputFile']) 
+    input_path = os.path.join(curr_dir, config['InputDir'], config['InputFile'])
 else:
     input_path = os.path.join(curr_dir, config['InputFile'])
 
@@ -27,15 +28,15 @@ else:
     output_path = os.path.join(curr_dir, config['OutputFile'])
 
 
-def check_dir(directory:str):
-    '''If the output path already exists, sends a check to the user to make sure
+def check_dir(directory: str):
+    '''If the output path already exists, checks with the user to make sure
     they do not overwrite their already existing data.'''
 
     if os.path.exists(directory):
         user_inp = input(f'''File {config['OutputFile']} already exists.
 Input "y" to continue & overwrite; "n" to exit.
 Input: ''')
-        
+
         if user_inp == 'y':
             pass
         else:
@@ -43,9 +44,9 @@ Input: ''')
 
 
 def duplicates_check():
-    '''Asks the user if they would like to remove the duplicate ebook listings.'''
+    '''Asks the user if they would like to remove the duplicate listings.'''
 
-    user_inp = input(f'''Would you like to remove duplicate ebook listings for each professor?
+    user_inp = input('''Would you like to remove duplicate ebook listings for each professor?
 Input "y" to remove duplicates; "n" to use data as is.
 Input: ''')
     if user_inp == 'y':
@@ -55,9 +56,10 @@ Input: ''')
 
 
 def get_edition_str(row, row_name):
-    '''Takes the current working row and checks it for the edition number, creating a string for it.'''
+    '''Takes the current working row and checks it for the
+       edition number, creating a string for it.'''
 
-    edition_num = str(row[row_name]) if pd.isna(row[row_name]) == False else None
+    edition_num = str(row[row_name]) if pd.isna(row[row_name]) is False else None
     th_list = ['4', '5', '6', '7', '8', '9', '0']
 
     if edition_num is not None:
@@ -71,26 +73,35 @@ def get_edition_str(row, row_name):
             edition_num += 'th'
 
         edition_num += ' Edition'
-    
+
     return edition_num
 
 
 def get_course_arr(row):
-    '''Takes the current working row and extracts the course code and section, converting
-    it into a single array for usage.'''
+    '''Takes the current working row and extracts the course code
+       and section, converting it into a single array for usage.'''
 
     course_code = ''
     last_char = False
 
     for char in row['Course Number and Section']:
+
+        # adding any letters that appear
         if char.isalpha():
             course_code += char
+
+        # if the first part just finished (all letters), add a space
+        # this ensures there is a space between subject & code i.e. MTH 105Z
         elif char.isnumeric() and not last_char:
             course_code += ' '
             course_code += char
             last_char = True
+
+        # adding remainder of numbers
         elif char.isnumeric():
             course_code += char
+
+        # ensuring that hyphens for course codes are handled properly
         elif char == '-':
             course_code += ' '
 
@@ -103,14 +114,15 @@ def get_course_arr(row):
 
 
 def get_access_types(row):
-    '''Takes the current working row and extracts all of the copy amounts and access links.'''
+    '''Takes the current working row and extracts 
+       all of the copy amounts and access links.'''
 
     return_row = [[], [], [], [], []]
     if not pd.isna(row['Ebook Permalink']):
         return_row[0].append(row['Ebook Permalink'])
         return_row[0].append(row['Ebook Users'])
         return_row[0].append(row['CDL'])
-    
+
     if not pd.isna(row['Print Permalink 1']):
         return_row[1].append(row['Print Permalink 1'])
         return_row[1].append(row['Print 1 Copies'])
@@ -130,20 +142,21 @@ def get_access_types(row):
 
 
 def get_access_email(book):
-    '''This function takes in a single books access data and reads across it to create the email
-    with the various links and listing for each title.'''
+    '''This function takes in a single books access data and reads across it
+       to create an email with the various links and listing for each title.'''
 
     email_return = ''
     scanned_appear = False
     phyiscal_appear = False
 
-    # holding all the strings so it is easier to iterate through them in the proper order
+    # holding all the strings
+    # this makes it easier to iterate through them in the proper order
     ebook_list = ''
     scan_list = ''
     audio_list = ''
-    #video_list = ''
+    # video_list = ''
     print_list = ''
-    #dvd_list = ''
+    # dvd_list = ''
 
     # ebooks
     if book[0]:
@@ -159,7 +172,7 @@ def get_access_email(book):
                     user_str = 'users'
 
                 ebook_list += f'<li><a href="{book[0][0]}">Ebook</a>: {book[0][1]} simultaneous {user_str}</li>'
-        
+
     # CDL
     if book[0]:
         if book[0][2] == True:
@@ -212,19 +225,17 @@ check_dir(output_path)
 remove_duplicates = duplicates_check()
 
 # set up the outline to grab all the necessary information
-result_outline = {'Instructor' : [],
-                  'Email' : [],
-                  'Books' : [],
-                  'Book Output' : [],
-                  'Courses' : []
-}
+result_outline = {'Instructor': [],
+                  'Email': [],
+                  'Books': [],
+                  'Book Output': [],
+                  'Courses': []}
 
 # format data output for output excel sheet
-final_data = {'First Name' : [],
-              'Last Name' : [],
-              'Email' : [],
-              'Book Output' : []
-}
+final_data = {'First Name': [],
+              'Last Name': [],
+              'Email': [],
+              'Book Output': []}
 
 
 # looking across the whole input spreadsheet
@@ -232,7 +243,6 @@ for idx, row in data.iterrows():
 
     # checking whether or not it is available
     if row['Found in Catalog?'] == 'no' or pd.isna(row['Found in Catalog?']) or row['Found in Catalog?'] == 'BNC only':
-        #if debug: print(f'Skipping... Not in Catalog ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
         continue
 
     # checking reading list
@@ -297,7 +307,7 @@ for instructor in result_outline['Instructor']:
             email_str += '<br>'
 
         email_str += f'<b>{course[0]} {course[1]}</b><br>Students can find all library materials by <a href="https://search.library.oregonstate.edu/discovery/search?query=any,contains,{course[0]}%20{course[1]}&tab=CourseReserves&search_scope=CourseReserves&vid=01ALLIANCE_OSU:OSU&lang=en&offset=0">searching course reserves for {course[0]} {course[1]}</a>.<br><ul>'
-        
+
         # for each book in that course
         used_books = []
         for book in result_outline['Books'][idx]:
@@ -312,7 +322,7 @@ for instructor in result_outline['Instructor']:
 
             if book_course != course:
                 continue
-            
+
             # removing these repeated tags
             cleaner_list = [' (Cei)', '(Loose-Leaf)', 'Loose-Leaf','Ebook - Lifetime Duration', 'Ebook(5 Yr Access)', 'Ebook (Lifetime)', 'Ebook (180 days)', 'Ebook (150 days)', 'Ebook (120 days)', 'Ebook - Lifetime Access', 'Ebook -Lifetime Access', 'Ebook - Lifetime', 'Ebook - 180Days', 'Etext W/Connect Access Code', '[Qr]', '[Nbs]', '(Cei)', '(Ll)', 'W/1 Term Access Code Pkg', 'W/1 Year Access Code Pkg', 'W/2 Year Access Code Pkg', '1 Term Access Code', '1 Year Access Code', '2 Year Access Code', 'Ebook']
             if remove_duplicates:
@@ -386,7 +396,7 @@ column_settings = []
 for header in result_data.columns:
     column_settings.append({'header': header})
 
-worksheet.add_table(0, 0, max_row,max_col - 1, {'columns': column_settings})
+worksheet.add_table(0, 0, max_row, max_col - 1, {'columns': column_settings})
 
 worksheet.set_column(0, max_col - 1, 12)
-writer.close() # close and output
+writer.close()  # close and output
