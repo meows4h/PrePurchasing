@@ -35,7 +35,7 @@ Finally, you will take this output and move it into the SharePoint folder for us
 ### Power Automate Portion
 1. Take this output file and feel free to rename it to what seems right (i.e. Summer25 Emails)
 2. Upload the file to the appropriate folder of the SharePoint.
-3. Go to the Power Automate Pre-Purchasing Flow, click on edit, and click on "List rows present in a table". (Find this Flow at https://make.powerautomate.com/environments/Default-ce6d05e1-3c5e-4d62-87a8-4c4a2713c113/flows/shared/286b5cad-8ed1-48d6-9358-5ab72464b029/details?v3=false)
+3. Go to the Power Automate Pre-Purchasing Flow, click on edit, and click on "List rows present in a table".
 4. Here you will select "Group - OSU Libraries and Press" and "Documents" for the first two boxes if they are not already populated, if they are, continue.
 5. The third box is to the directory of where the file is, feel free to click through until you find it (i.e. /LEAD/eTextbooks project/Summer25 Emails.xlsx).
 6. Finally, click on the last box and make sure "Table1" is selected.
