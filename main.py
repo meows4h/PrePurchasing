@@ -8,24 +8,27 @@ import configparser
 full_config = configparser.ConfigParser()
 full_config.read('config.ini')
 config = full_config['DEFAULT']  # reading the DEFAULT section
-term = config['Term']
 debug = config['Debug']
 curr_dir = os.path.dirname(__file__)
 
 if debug == 'False': debug = False
-
 if debug: print('Debug texts are active.')
 
 # checking for blank input directories
-if config['InputDir'] is not None: 
+if config['InputDir'] is not None:
     input_path = os.path.join(curr_dir, config['InputDir'], config['InputFile'])
 else:
     input_path = os.path.join(curr_dir, config['InputFile'])
 
-if config['OutputDir'] is not None: 
+if config['OutputDir'] is not None:
     output_path = os.path.join(curr_dir, config['OutputDir'], config['OutputFile'])
 else:
     output_path = os.path.join(curr_dir, config['OutputFile'])
+
+if config['SkippedDir'] is not None:
+    skipped_path = os.path.join(curr_dir, config['SkippedDir'], config['SkippedFile'])
+else:
+    output_path = os.path.join(curr_dir, config['SkippedFile'])
 
 
 def check_dir(directory: str):
@@ -33,7 +36,7 @@ def check_dir(directory: str):
     they do not overwrite their already existing data.'''
 
     if os.path.exists(directory):
-        user_inp = input(f'''File {config['OutputFile']} already exists.
+        user_inp = input(f'''File {directory} already exists.
 Input "y" to continue & overwrite; "n" to exit.
 Input: ''')
 
@@ -41,6 +44,14 @@ Input: ''')
             pass
         else:
             sys.exit('\nExiting program.')
+
+
+def get_sheetname():
+    '''Asks the user to input what sheet they wish to process.'''
+    user_inp = input('''What sheet are you wanting to process?
+i.e. Summer25, Fall25, etc.
+Input: ''')
+    return user_inp
 
 
 def duplicates_check():
@@ -78,13 +89,13 @@ def get_edition_str(row, row_name):
 
 
 def get_course_arr(row):
-    '''Takes the current working row and extracts the course code
-       and section, converting it into a single array for usage.'''
+    '''Takes the current working row and extracts the course code,
+       converting it into a single array for usage.'''
 
     course_code = ''
     last_char = False
 
-    for char in row['Course Number and Section']:
+    for char in row['Course Number']:
 
         # adding any letters that appear
         if char.isalpha():
@@ -106,32 +117,30 @@ def get_course_arr(row):
             course_code += ' '
 
     course_arr = course_code.split(' ')
-
-    # leaving out the section number, can revert this later if needed
     course_arr = [course_arr[0], course_arr[1]]
 
     return course_arr
 
 
 def get_access_types(row):
-    '''Takes the current working row and extracts 
+    '''Takes the current working row and extracts
        all of the copy amounts and access links.'''
 
     return_row = [[], [], [], [], []]
-    if not pd.isna(row['Ebook Permalink']):
+    if not pd.isna(row['Ebook Permalink']) and not pd.isna(row['Ebook Users']) and not pd.isna(row['CDL']):
         return_row[0].append(row['Ebook Permalink'])
         return_row[0].append(row['Ebook Users'])
         return_row[0].append(row['CDL'])
 
-    if not pd.isna(row['Print Permalink 1']):
+    if not pd.isna(row['Print Permalink 1']) and not pd.isna(row['Print 1 Copies']):
         return_row[1].append(row['Print Permalink 1'])
         return_row[1].append(row['Print 1 Copies'])
 
-    if not pd.isna(row['Print Permalink 2']):
+    if not pd.isna(row['Print Permalink 2']) and not pd.isna(row['Print 2 Copies']):
         return_row[2].append(row['Print Permalink 2'])
         return_row[2].append(row['Print 2 Copies'])
 
-    if not pd.isna(row['BNC Permalink']):
+    if not pd.isna(row['BNC Permalink']) and not pd.isna(row['BNC Copies']):
         return_row[3].append(row['BNC Permalink'])
         return_row[3].append(row['BNC Copies'])
 
@@ -160,8 +169,8 @@ def get_access_email(book):
 
     # ebooks
     if book[0]:
-        if book[0][2] == False:
-            if (book[0][1] == 'non-perm' or book[0][1] == 'unlimited'):
+        if book[0][2] is False:
+            if (book[0][1] == 'non-perm' or book[0][1] == 'nonperm' or book[0][1] == 'unlimited'):
                 ebook_list += f'<li><a href="{book[0][0]}">Ebook</a>: unlimited simultaneous users</li>'
             else:
                 # adding some extra cases to prevent breaks when data is formatted weird
@@ -175,7 +184,7 @@ def get_access_email(book):
 
     # CDL
     if book[0]:
-        if book[0][2] == True:
+        if book[0][2] is True:
             scanned_appear = True
             if (book[0][1] == 'non-perm' or book[0][1] == 'unlimited'):
                 scan_list += f'<li><a href="{book[0][0]}">Scanned Book</a>: unlimited simultaneous users</li>'
@@ -215,14 +224,45 @@ def get_access_email(book):
     return email_return, scanned_appear, phyiscal_appear
 
 
+def preserve_missed_entry(row, output_set, note):
+    ''''''
+    output_set['Course Number'].append(row['Course Number'])
+    output_set['Section'].append(row['Section'])
+    output_set['Primary Instructor'].append(row['Primary Instructor'])
+    output_set['Email Address'].append(row['Email Address'])
+    output_set['Title'].append(row['Title'])
+    output_set['Ed'].append(row['Ed'])
+    output_set['Year'].append(row['Year'])
+    output_set['Author'].append(row['Author'])
+    output_set['Found in Catalog?'].append(row['Found in Catalog?'])
+    output_set['Ebook Permalink'].append(row['Ebook Permalink'])
+    output_set['Ebook Users'].append(row['Ebook Users'])
+    output_set['CDL'].append(row['CDL'])
+    output_set['Print Permalink 1'].append(row['Print Permalink 1'])
+    output_set['Print 1 Copies'].append(row['Print 1 Copies'])
+    output_set['Print Permalink 2'].append(row['Print Permalink 2'])
+    output_set['Print 2 Copies'].append(row['Print 2 Copies'])
+    output_set['BNC Permalink'].append(row['BNC Permalink'])
+    output_set['BNC Copies'].append(row['BNC Copies'])
+    output_set['Audiobook Permalink'].append(row['Audiobook Permalink'])
+    output_set['Everything in Reading List'].append(row['Everything in Reading List'])
+    output_set['Date Emailed'].append(row['Date Emailed'])
+    return output_set
+
+
+# getting the sheetname
+process_sheet = get_sheetname()
+
 # read the data into the script
-data = pd.read_excel(input_path)
+data = pd.read_excel(input_path, sheet_name=process_sheet)
 
 # check the output directory
 check_dir(output_path)
+check_dir(skipped_path)
 
 # check if the user wants to remove duplicates
-remove_duplicates = duplicates_check()
+# remove_duplicates = duplicates_check()
+remove_duplicates = True  # automatically setting to true to cutdown checks
 
 # set up the outline to grab all the necessary information
 result_outline = {'Instructor': [],
@@ -230,6 +270,30 @@ result_outline = {'Instructor': [],
                   'Books': [],
                   'Book Output': [],
                   'Courses': []}
+
+# format data output for missing entry excel sheet
+preserve_data = {'Course Number': [],
+                 'Section': [],
+                 'Primary Instructor': [],
+                 'Email Address': [],
+                 'Title': [],
+                 'Ed': [],
+                 'Year': [],
+                 'Author': [],
+                 'Found in Catalog?': [],
+                 'Ebook Permalink': [],
+                 'Ebook Users': [],
+                 'CDL': [],
+                 'Print Permalink 1': [],
+                 'Print 1 Copies': [],
+                 'Print Permalink 2': [],
+                 'Print 2 Copies': [],
+                 'BNC Permalink': [],
+                 'BNC Copies': [],
+                 'Audiobook Permalink': [],
+                 'Everything in Reading List': [],
+                 'Date Emailed': [],
+                 'Note': []}
 
 # format data output for output excel sheet
 final_data = {'First Name': [],
@@ -241,20 +305,33 @@ final_data = {'First Name': [],
 # looking across the whole input spreadsheet
 for idx, row in data.iterrows():
 
+    # checking if the email has already been sent
+    if not pd.isna(row['Date Emailed']):
+        if debug: print(f'Skipping... Already sent ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
+        continue
+
     # checking whether or not it is available
     if row['Found in Catalog?'] == 'no' or pd.isna(row['Found in Catalog?']) or row['Found in Catalog?'] == 'BNC only':
+        if debug: print(f'Skipping... Not in catalog ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
+        # preserve_missed_entry(row, preserve_data)  # saving the entry
         continue
 
     # checking reading list
-    if row['Everything in Reading List'] == False or pd.isna(row['Everything in Reading List']):
+    if row['Everything in Reading List'] is False or pd.isna(row['Everything in Reading List']):
         if debug: print(f'Skipping... Not in reading list ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
+        # preserve_missed_entry(row, preserve_data)  # saving the entry
         continue
 
-    instructor = str(row['Primary Instructor'])
-    email = str(row['Email Address'])
+    instructor = str(row['Primary Instructor']).strip()
+    email = str(row['Email Address']).strip()
+
+    if instructor == 'STAFF':
+        if debug: print(f'Skipping... STAFF listing ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
+        continue
 
     if instructor == '0' or email == '0' or instructor == '#N/A' or email == '#N/A' or pd.isna(row['Primary Instructor']) or pd.isna(row['Email Address']):
-        if debug: print(f'Skipping... Missing critical info ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
+        print(f'Skipping... Missing critical info ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
+        preserve_missed_entry(row, preserve_data, 'Instructor Information')  # saving the entry
         continue
 
     # grabbing the edition number, course code string, and access types/links
@@ -262,11 +339,21 @@ for idx, row in data.iterrows():
     course_arr = get_course_arr(row)
     access_type = get_access_types(row)
 
+    # access_type input validation
+    check_num = 0
+    for access in access_type:
+        if access:
+            check_num += 1
+    if not check_num:
+        print(f'Skipping... Missing access information entirely ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
+        preserve_missed_entry(row, preserve_data, 'Access Information')  # saving the entry
+        continue
+
     # compile baseline information + remove blank space
     title = row['Title'].title()
-    title = title[:-1] if title[-1] == ' ' else title
+    title = title.strip()
     author = row['Author'].title()
-    author = author[:-1] if author[-1] == ' ' else author
+    author = author.strip()
     book_info = [title, edition_num, author, access_type, course_arr, row['Year']]
 
     # add new instructor to the outline
@@ -288,9 +375,34 @@ for idx, row in data.iterrows():
 # taking the result outline and finalizing it into an output for email
 # for each instructor found
 for instructor in result_outline['Instructor']:
+
+    # ADDING NEW NAME PROCESSING BLOCK
+    # in the future, if naming is changed again, alterations go here
+
+    first_name = ''
+    last_name = ''
+
     name_arr = instructor.split(', ')
-    first_name = name_arr[1]
-    last_name = name_arr[0]
+    if len(name_arr) == 1:
+        name_arr = instructor.split(' ')
+        last_name = name_arr[len(name_arr) - 1].strip()
+        for piece in name_arr:
+            if piece == last_name:
+                break
+            first_name += f' {piece}'
+        first_name = first_name.strip()
+    else:
+        first_name = name_arr[1].strip()
+        last_name = name_arr[0].strip()
+
+    # END PROCESSING BLOCK
+
+    # OLD PROCESS
+    # name_arr = instructor.split(', ')
+    # first_name = name_arr[1]
+    # last_name = name_arr[0]
+    # END OLD PROCESS
+
     idx = result_outline['Instructor'].index(instructor)
 
     final_data['First Name'].append(first_name)
@@ -324,7 +436,7 @@ for instructor in result_outline['Instructor']:
                 continue
 
             # removing these repeated tags
-            cleaner_list = [' (Cei)', '(Loose-Leaf)', 'Loose-Leaf','Ebook - Lifetime Duration', 'Ebook(5 Yr Access)', 'Ebook (Lifetime)', 'Ebook (180 days)', 'Ebook (150 days)', 'Ebook (120 days)', 'Ebook - Lifetime Access', 'Ebook -Lifetime Access', 'Ebook - Lifetime', 'Ebook - 180Days', 'Etext W/Connect Access Code', '[Qr]', '[Nbs]', '(Cei)', '(Ll)', 'W/1 Term Access Code Pkg', 'W/1 Year Access Code Pkg', 'W/2 Year Access Code Pkg', '1 Term Access Code', '1 Year Access Code', '2 Year Access Code', 'Ebook']
+            cleaner_list = [' (Cei)', '(Loose-Leaf)', 'Loose-Leaf', 'Ebook - Lifetime Duration', 'Ebook(5 Yr Access)', 'Ebook (Lifetime)', 'Ebook (180 days)', 'Ebook (150 days)', 'Ebook (120 days)', 'Ebook - Lifetime Access', 'Ebook -Lifetime Access', 'Ebook - Lifetime', 'Ebook - 180Days', 'Etext W/Connect Access Code', '[Qr]', '[Nbs]', '(Cei)', '(Ll)', 'W/1 Term Access Code Pkg', 'W/1 Year Access Code Pkg', 'W/2 Year Access Code Pkg', '1 Term Access Code', '1 Year Access Code', '2 Year Access Code', 'Ebook']
             if remove_duplicates:
                 for phrase in cleaner_list:
                     book_title = book_title.replace(phrase.title(), '')
@@ -380,23 +492,25 @@ for instructor in result_outline['Instructor']:
 
     final_data['Book Output'].append(email_str)
 
-# convert to dataframe object
-result_data = pd.DataFrame(data=final_data)
 
-# open an xlsxwriter to be able to format the frame into a table
-writer = pd.ExcelWriter(output_path, engine='xlsxwriter')
-result_data.to_excel(writer, sheet_name='email list', startrow=1, header=False, index=False)
+def write_to_excel(directory, export_data, sheetname):
+    ''''''
+    dataframe = pd.DataFrame(data=export_data)
+    writer = pd.ExcelWriter(directory, engine='xlsxwriter')
+    dataframe.to_excel(writer, sheet_name=sheetname, startrow=1, header=False, index=False)
+    # workbook = writer.book
+    worksheet = writer.sheets[sheetname]
+    (max_row, max_col) = dataframe.shape
+    column_settings = []
+    for header in dataframe.columns:
+        column_settings.append({'header': header})
+    worksheet.add_table(0, 0, max_row, max_col - 1, {'columns': column_settings})
+    worksheet.set_column(0, max_col - 1, 12)
+    writer.close()
 
-workbook = writer.book
-worksheet = writer.sheets['email list']
 
-(max_row, max_col) = result_data.shape
-
-column_settings = []
-for header in result_data.columns:
-    column_settings.append({'header': header})
-
-worksheet.add_table(0, 0, max_row, max_col - 1, {'columns': column_settings})
-
-worksheet.set_column(0, max_col - 1, 12)
-writer.close()  # close and output
+write_to_excel(output_path, final_data, 'Email List')
+if len(preserve_data['Title']):
+    write_to_excel(skipped_path, preserve_data, process_sheet)
+else:
+    print('No errors found outside of expected values.')
