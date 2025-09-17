@@ -1,5 +1,5 @@
-# NOTE : how to use formatting wise
-# format examples
+# NOTE : how to use formatting wise (examples)
+
 # Reserve Status : just looking for the single input
 # i.e. "READY TO EMAIL"
 
@@ -13,8 +13,8 @@
 # Edition : a number is easiest, but only include one, any pieces like "nd" get removed
 # i.e. 2, 6, 12, 3rd, 5th, 17th
 
-# ISBN : this value is not read by this program as of this comment
-# Format : this list -> ebook, physical book, scan, dvd, streaming video, audiobook, other
+# ISBN : this value is not read by this program
+# Format : ebook, physical book, scan, dvd, streaming video, audiobook, other
 # Total Print Copies : just a number
 
 # License (Electronic-Only) : just pick from the list
@@ -23,6 +23,10 @@
 # OverDrive (OC/OU), OverDrive (Other)
 
 # PERMALINK : needs a proper search.library link
+
+# Instructor Email : needs an email string to populate the email field
+# this can also include lists of emails
+# i.e. emailexample@gmail.com or emailexample@gmail.com; email2@gmail.com;...
 
 # The remaining values are not processed as of this time
 
@@ -36,7 +40,6 @@ import configparser
 full_config = configparser.ConfigParser()
 full_config.read('config.ini')
 config = full_config['DEFAULT']  # reading the DEFAULT section
-term = config['Term']
 debug = config['Debug']
 feedback = config['Feedback']
 sheetname = config['SheetName']
@@ -66,7 +69,7 @@ else:
 
 
 # pulling original methods
-def check_dir(directory:str, config):
+def check_dir(directory: str, config):
     '''If the output path already exists, sends a check to the user to make sure
     they do not overwrite their already existing data.'''
 
