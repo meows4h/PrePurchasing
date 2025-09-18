@@ -247,6 +247,7 @@ def preserve_missed_entry(row, output_set, note):
     output_set['Audiobook Permalink'].append(row['Audiobook Permalink'])
     output_set['Everything in Reading List'].append(row['Everything in Reading List'])
     output_set['Date Emailed'].append(row['Date Emailed'])
+    output_set['Note'].append(note)
     return output_set
 
 
@@ -306,7 +307,7 @@ final_data = {'First Name': [],
 for idx, row in data.iterrows():
 
     # checking if the email has already been sent
-    if not pd.isna(row['Date Emailed']):
+    if not pd.isna(row['Date Emailed']) and pd.isna(row['Email Send Error; Fix and Retry']):
         if debug: print(f'Skipping... Already sent ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
         continue
 
@@ -507,7 +508,6 @@ def write_to_excel(directory, export_data, sheetname):
     worksheet.add_table(0, 0, max_row, max_col - 1, {'columns': column_settings})
     worksheet.set_column(0, max_col - 1, 12)
     writer.close()
-
 
 write_to_excel(output_path, final_data, 'Email List')
 if len(preserve_data['Title']):
