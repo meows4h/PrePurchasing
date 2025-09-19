@@ -1,43 +1,75 @@
-# Pre-Purchasing Email Generator
-This is supposed to take the prepurchasing sheet and convert the necessary listings into a single email per professor, divided per course.
+# Textbook Resources Email Generator
+This program contains two main scripts, one for each spreadsheet input type. The main part of this program is for the Pre-Purchasing sheet, while the other additional piece is for the Requests/Purchasing sheet.
 
 ## Getting Started
-If you do not know how to use a command line (cmd.exe) feel free to just run the `install.bat` file, it runs the pip command for you.
+To install the required Python libraries, use the `install.bat` file, it will automatically run the command:
+```pip install -r requirements.txt```
 
-The only python package/library this script needs is pandas. Regardless, feel free to use the following:
-```pip install requirements.txt```
+Subsequently after installing the libraries, to run the script, use the `run.bat` file. This will run the command for the primary script:
+```python main.py```
 
-By default, the config is configured to intake an `input.xlsx` file and output an `output.xlsx` file. This can be changed in the `config.ini` file.
+If it were for the requests script, the `run.bat` file runs:
+```python requests.py```
 
-## General Script Usage
-To run the script, you can either use `run.bat` or run it using python from a command line.
+## Main Pre-Purchasing Script Usage
+Within the main folder, to run the script, use either `run.bat` or open Command Prompt, navigate to the folder directory using the `cd` (change directory) command, and run `python main.py`.
 
-If you already have a matching output file in the same output directory, it will ask to confirm that you wish to overwrite it.
+The first question it will ask is for the name of the sheet being processed, often this will look like something like "Fall25" or "Summer25", etc. Input which sheet is looking to be processed.
 
-It will then ask if you would like to remove duplicates (all the entires with Ebook Unlimited Access, etc), you likely want to say yes.
+Next, it may state that the output file already exists, as well as the errors/additional output file already existing. If you're sure you're fine with overwriting each of these, input `y` in each case as prompted.
 
-After this, it will run, if it has debug on, it will spit out a ton of entries it skips over due to not having information or not being included.
+After that last question, it should run the remainder of the script and output the relevant file.
 
-Finally, you will take this output and move it into the SharePoint folder for use in the flow. Running it directly from the flow will send the formatted emails.
+If it crashes or has any serious issues following this, please reach out to Rox Beecher to correct it.
 
-## Full Step by Step Guide
-### Script Portion
-1. Download the full or part of the Pre-Purchasing sheet by going to File -> Create a Copy -> Download a Copy.
-2. Rename the file to `input.xlsx` (or whichever name you set in `config.ini`).
-3. Move the file to the directory of the python script (or to where you set the input directory).
-4. If you have not already, run `install.bat` (or install pandas via pip).
-5. Run `run.bat` (or `main.py` via the command line). (Note: Running this for the first time may have some lag, be patient! If you need to restart it, press Ctrl + C once or twice to stop the program)
-6. You may be asked if you wish to overwrite the output file, hit yes or no depending on what you'd like.
-7. You will be asked if you wish to remove duplicates, enter 'y' to indicate yes.
-8. The script will run, if debug is enabled in `config.ini` it will print all skipped entries.
-9. There will now be a file named `output.xlsx` (or whichever name you set in `config.ini`).
+## Requests Script Usage
+Within the requests subfolder, to run the script, use either `run.bat` or open Command Prompt, navigate to the folder directory using the `cd` (change directory) command, and run `python requests.py`.
 
-### Power Automate Portion
-1. Take this output file and feel free to rename it to what seems right (i.e. Summer25 Emails)
-2. Upload the file to the appropriate folder of the SharePoint.
-3. Go to the Power Automate Pre-Purchasing Flow, click on edit, and click on "List rows present in a table".
-4. Here you will select "Group - OSU Libraries and Press" and "Documents" for the first two boxes if they are not already populated, if they are, continue.
-5. The third box is to the directory of where the file is, feel free to click through until you find it (i.e. /LEAD/eTextbooks project/Summer25 Emails.xlsx).
-6. Finally, click on the last box and make sure "Table1" is selected.
-7. For the email formatting, go into the "Apply to each" tab and into the "Send an email from a shared inbox", make sure the Subject is correct, as well as the email format.
-8. Hit save and then feel free to run the Flow, it will send out all the emails listed in the spreadsheet generated from the script, all of them will fill the Drafts before being sent out in batches.
+It may state that the output file already exists. If you're sure you're fine with overwriting it, input `y` in as prompted.
+
+After the prompt, it should run the remainder of the script and output the relevant file. It may list a considerable amount of statements that show `WARNING` and `ERROR`.
+
+`WARNING` indicates something minor is missing, but not integral to the output, merely warning you about it missing. 
+
+`ERROR` indicates something major is missing, that is integral to the output. In each case of an error, it is skipping over the listed row or book as it cannot write it to an email.
+
+If it crashes or has any serious issues following this, please reach out to Rox Beecher to correct it.
+
+## Power Automate
+This is the step that directly ties in and directly sends out the emails.
+
+After running the script and getting an output file, as long as the output file is located within a OneDrive / Sharepoint area, the Flow should be able to link to them.
+
+Navigate to the necessary Flow for the output you are processing.
+
+To send out the current batch, click on `Edit`, click on the `List rows present in a table` node which should open a menu on the left hand side. Go ahead and click on the `File` input and ensure it is set to the new output that was just generated. After this, change the `Table` input below it to the only selectable table option (usually `Table1`). After setting that, it should be good to go.
+
+If you'd like to modify the exact template, click on the drop down arrow on `Apply to each` to reveal the `Send an email from a shared mailbox (V2)` node. It will reveal the menu on the left hand side, similar to an email interface. The `Book Output` variable is going to be all the textbooks and automatically generated associated text, everything else around the text can be modified to the necessary fit of the script.
+
+After each piece is done, save it, run it, and confirm that each email is being sent from the proper Outlook inbox.
+
+If any further instruction is needed, reach out to Rox Beecher.
+
+## File/Script Configuration
+There are a couple options inside the `config.ini` file. In order to edit these options, feel free to open the file within a program like Notepad. Each of these values should have a comment next to them within the file.
+
+If in doubt, don't touch these values, as they can have incorrect values that changes / crashes the script.
+
+### Main Pre-Purchasing Config
+- `Debug`: `True` or `False` (Enables output that shows extra checks)
+- `RemoveDuplicateBooks`: `True` or `False` (Enables removing duplicate titles under the same professor)
+- `InputDir`: Directory; i.e. C:/Users/<user>/Downloads/<file>, if left blank, looks in same folder (What file to search for the input file within)
+- `InputFile`: File Name; i.e. Data AY25-26.xlsx (Specific name of file to input)
+- `OutputDir`: Directory; if left blank, outputs to same folder
+- `OutputFile`: File Name; i.e. output.xlsx (Specific name of file to output)
+
+### Requests Config
+- `Debug`: `True` or `False` (Enables output that shows extra checks)
+- `Feedback`: `True` or `False` (Enables output to show flagged missing information)
+- `SkipLinks`: `True` or `False` (Enables skipping over entries with missing `https://search...` links)
+- `RemoveDuplicateBooks`: `True` or `False` (Enables removing duplicate titles under the same professor)
+- `InputDir`: Directory; i.e. C:/Users/<user>/Downloads/<file>, if left blank, looks in same folder (What file to search for the input file within)
+- `InputFile`: File Name; i.e. Data AY25-26.xlsx (Specific name of file to input)
+- `SheetName`: Excel Sheetname; i.e. CourseReserves-VAL-Active-25-26 (Within Excel, name of sheet)
+- `OutputDir`: Directory; if left blank, outputs to same folder
+- `OutputFile`: File Name; i.e. output.xlsx (Specific name of file to output)
