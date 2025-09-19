@@ -9,10 +9,12 @@ full_config = configparser.ConfigParser()
 full_config.read('config.ini')
 config = full_config['DEFAULT']  # reading the DEFAULT section
 debug = config['Debug']
+remove_duplicates = config['RemoveDuplicateBooks']
 curr_dir = os.path.dirname(__file__)
 
 if debug == 'False': debug = False
 if debug: print('Debug texts are active.')
+if remove_duplicates == 'False': remove_duplicates = False
 
 # checking for blank input directories
 if config['InputDir'] is not None:
@@ -52,18 +54,6 @@ def get_sheetname():
 i.e. Summer25, Fall25, etc.
 Input: ''')
     return user_inp
-
-
-def duplicates_check():
-    '''Asks the user if they would like to remove the duplicate listings.'''
-
-    user_inp = input('''Would you like to remove duplicate ebook listings for each professor?
-Input "y" to remove duplicates; "n" to use data as is.
-Input: ''')
-    if user_inp == 'y':
-        return True
-    else:
-        return False
 
 
 def get_edition_str(row, row_name):
@@ -127,20 +117,20 @@ def get_access_types(row):
        all of the copy amounts and access links.'''
 
     return_row = [[], [], [], [], []]
-    if not pd.isna(row['Ebook Permalink']) and not pd.isna(row['Ebook Users']) and not pd.isna(row['CDL']):
+    if not (pd.isna(row['Ebook Permalink']) or pd.isna(row['Ebook Users']) or pd.isna(row['CDL'])):
         return_row[0].append(row['Ebook Permalink'])
         return_row[0].append(row['Ebook Users'])
         return_row[0].append(row['CDL'])
 
-    if not pd.isna(row['Print Permalink 1']) and not pd.isna(row['Print 1 Copies']):
+    if not (pd.isna(row['Print Permalink 1']) or pd.isna(row['Print 1 Copies'])):
         return_row[1].append(row['Print Permalink 1'])
         return_row[1].append(row['Print 1 Copies'])
 
-    if not pd.isna(row['Print Permalink 2']) and not pd.isna(row['Print 2 Copies']):
+    if not (pd.isna(row['Print Permalink 2']) or pd.isna(row['Print 2 Copies'])):
         return_row[2].append(row['Print Permalink 2'])
         return_row[2].append(row['Print 2 Copies'])
 
-    if not pd.isna(row['BNC Permalink']) and not pd.isna(row['BNC Copies']):
+    if not (pd.isna(row['BNC Permalink']) or pd.isna(row['BNC Copies'])):
         return_row[3].append(row['BNC Permalink'])
         return_row[3].append(row['BNC Copies'])
 
@@ -260,10 +250,6 @@ data = pd.read_excel(input_path, sheet_name=process_sheet)
 # check the output directory
 check_dir(output_path)
 check_dir(skipped_path)
-
-# check if the user wants to remove duplicates
-# remove_duplicates = duplicates_check()
-remove_duplicates = True  # automatically setting to true to cutdown checks
 
 # set up the outline to grab all the necessary information
 result_outline = {'Instructor': [],
@@ -495,7 +481,7 @@ for instructor in result_outline['Instructor']:
 
 
 def write_to_excel(directory, export_data, sheetname):
-    ''''''
+    '''Exports given data to given directory with given sheetname.'''
     dataframe = pd.DataFrame(data=export_data)
     writer = pd.ExcelWriter(directory, engine='xlsxwriter')
     dataframe.to_excel(writer, sheet_name=sheetname, startrow=1, header=False, index=False)
@@ -508,6 +494,7 @@ def write_to_excel(directory, export_data, sheetname):
     worksheet.add_table(0, 0, max_row, max_col - 1, {'columns': column_settings})
     worksheet.set_column(0, max_col - 1, 12)
     writer.close()
+
 
 write_to_excel(output_path, final_data, 'Email List')
 if len(preserve_data['Title']):
