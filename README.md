@@ -63,7 +63,7 @@ If in doubt, don't touch these values, as they can have incorrect values that ch
 - `Debug`: `True` or `False` (Enables output that shows extra checks)
 - `RemoveDuplicateBooks`: `True` or `False` (Enables removing duplicate titles under the same professor)
 - `InputDir`: Directory; i.e. C:/Users/<user>/Downloads/<file>, if left blank, looks in same folder (What file to search for the input file within)
-- `InputFile`: File Name; i.e. Data AY25-26.xlsx (Specific name of file to input)
+- `InputFile`: File Name; i.e. input.xlsx (Specific name of file to input)
 - `OutputDir`: Directory; if left blank, outputs to same folder
 - `OutputFile`: File Name; i.e. output.xlsx (Specific name of file to output)
 
@@ -73,7 +73,7 @@ If in doubt, don't touch these values, as they can have incorrect values that ch
 - `SkipLinks`: `True` or `False` (Enables skipping over entries with missing `https://search...` links)
 - `RemoveDuplicateBooks`: `True` or `False` (Enables removing duplicate titles under the same professor)
 - `InputDir`: Directory; i.e. C:/Users/<user>/Downloads/<file>, if left blank, looks in same folder (What file to search for the input file within)
-- `InputFile`: File Name; i.e. Data AY25-26.xlsx (Specific name of file to input)
+- `InputFile`: File Name; i.e. Data input.xlsx (Specific name of file to input)
 - `SheetName`: Excel Sheetname; i.e. CourseReserves-VAL-Active-25-26 (Within Excel, name of sheet)
 - `OutputDir`: Directory; if left blank, outputs to same folder
 - `OutputFile`: File Name; i.e. output.xlsx (Specific name of file to output)
