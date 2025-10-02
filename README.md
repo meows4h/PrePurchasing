@@ -12,6 +12,8 @@ If it were for the requests script, the `run.bat` file runs:
 ```python requests.py```
 
 ## Main Pre-Purchasing Script Usage
+Prior to running the script, ensure that the input file is named `input.xlsx` and is placed in the same folder as the script (assuming the `config.ini` has not been changed).
+
 Within the main folder, to run the script, use either `run.bat` or open Command Prompt, navigate to the folder directory using the `cd` (change directory) command, and run `python main.py`.
 
 The first question it will ask is for the name of the sheet being processed, often this will look like something like "Fall25" or "Summer25", etc. Input which sheet is looking to be processed.
@@ -23,6 +25,8 @@ After that last question, it should run the remainder of the script and output t
 If it crashes or has any serious issues following this, please reach out to Rox Beecher to correct it.
 
 ## Requests Script Usage
+Prior to running the script, ensure that the input file is named `input.xlsx` and is placed in the same folder as the script (assuming the `config.ini` has not been changed).
+
 Within the requests subfolder, to run the script, use either `run.bat` or open Command Prompt, navigate to the folder directory using the `cd` (change directory) command, and run `python requests.py`.
 
 It may state that the output file already exists. If you're sure you're fine with overwriting it, input `y` in as prompted.
