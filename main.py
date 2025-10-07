@@ -12,23 +12,30 @@ debug = config['Debug']
 remove_duplicates = config['RemoveDuplicateBooks']
 curr_dir = os.path.dirname(__file__)
 
-if debug == 'False': debug = False
-if debug: print('Debug texts are active.')
-if remove_duplicates == 'False': remove_duplicates = False
+if debug == 'False':
+    debug = False
+if remove_duplicates == 'False':
+    remove_duplicates = False
+
+if debug:
+    print('Debug texts are active.')
 
 # checking for blank input directories
 if config['InputDir'] is not None:
-    input_path = os.path.join(curr_dir, config['InputDir'], config['InputFile'])
+    input_path = os.path.join(curr_dir, config['InputDir'],
+                              config['InputFile'])
 else:
     input_path = os.path.join(curr_dir, config['InputFile'])
 
 if config['OutputDir'] is not None:
-    output_path = os.path.join(curr_dir, config['OutputDir'], config['OutputFile'])
+    output_path = os.path.join(curr_dir, config['OutputDir'],
+                               config['OutputFile'])
 else:
     output_path = os.path.join(curr_dir, config['OutputFile'])
 
 if config['SkippedDir'] is not None:
-    skipped_path = os.path.join(curr_dir, config['SkippedDir'], config['SkippedFile'])
+    skipped_path = os.path.join(curr_dir, config['SkippedDir'],
+                                config['SkippedFile'])
 else:
     output_path = os.path.join(curr_dir, config['SkippedFile'])
 
@@ -60,7 +67,8 @@ def get_edition_str(row, row_name):
     '''Takes the current working row and checks it for the
        edition number, creating a string for it.'''
 
-    edition_num = str(row[row_name]) if pd.isna(row[row_name]) is False else None
+    ed_temp = row[row_name]
+    edition_num = str(ed_temp) if pd.isna(ed_temp) is False else None
     th_list = ['4', '5', '6', '7', '8', '9', '0']
 
     if edition_num is not None:
@@ -117,20 +125,24 @@ def get_access_types(row):
        all of the copy amounts and access links.'''
 
     return_row = [[], [], [], [], []]
-    if not (pd.isna(row['Ebook Permalink']) or pd.isna(row['Ebook Users']) or pd.isna(row['CDL'])):
+    if not (pd.isna(row['Ebook Permalink']) or pd.isna(row['Ebook Users'])
+            or pd.isna(row['CDL'])):
         return_row[0].append(row['Ebook Permalink'])
         return_row[0].append(row['Ebook Users'])
         return_row[0].append(row['CDL'])
 
-    if not (pd.isna(row['Print Permalink 1']) or pd.isna(row['Print 1 Copies'])):
+    if not (pd.isna(row['Print Permalink 1'])
+            or pd.isna(row['Print 1 Copies'])):
         return_row[1].append(row['Print Permalink 1'])
         return_row[1].append(row['Print 1 Copies'])
 
-    if not (pd.isna(row['Print Permalink 2']) or pd.isna(row['Print 2 Copies'])):
+    if not (pd.isna(row['Print Permalink 2'])
+            or pd.isna(row['Print 2 Copies'])):
         return_row[2].append(row['Print Permalink 2'])
         return_row[2].append(row['Print 2 Copies'])
 
-    if not (pd.isna(row['BNC Permalink']) or pd.isna(row['BNC Copies'])):
+    if not (pd.isna(row['BNC Permalink'])
+            or pd.isna(row['BNC Copies'])):
         return_row[3].append(row['BNC Permalink'])
         return_row[3].append(row['BNC Copies'])
 
@@ -215,7 +227,7 @@ def get_access_email(book):
 
 
 def preserve_missed_entry(row, output_set, note):
-    ''''''
+    '''Formatting error outputs for the extra Excel sheet.'''
     output_set['Course Number'].append(row['Course Number'])
     output_set['Section'].append(row['Section'])
     output_set['Primary Instructor'].append(row['Primary Instructor'])
@@ -224,20 +236,34 @@ def preserve_missed_entry(row, output_set, note):
     output_set['Ed'].append(row['Ed'])
     output_set['Year'].append(row['Year'])
     output_set['Author'].append(row['Author'])
+    output_set['ISBN'].append(row['ISBN'])
+    output_set['Publisher'].append(row['Publisher'])
+    output_set['Requirement'].append(row['Requirement'])
+    output_set['Comments'].append(row['Comments'])
+    output_set['Max Enrollment'].append(row['Max Enrollment'])
+    output_set['Actual Enrollment'].append(row['Actual Enrollment'])
     output_set['Found in Catalog?'].append(row['Found in Catalog?'])
     output_set['Ebook Permalink'].append(row['Ebook Permalink'])
     output_set['Ebook Users'].append(row['Ebook Users'])
+    output_set['Ebook MMS Id'].append(row['Ebook MMS Id'])
     output_set['CDL'].append(row['CDL'])
     output_set['Print Permalink 1'].append(row['Print Permalink 1'])
+    output_set['Print 1 MMS Id'].append(row['Print 1 MMS Id'])
     output_set['Print 1 Copies'].append(row['Print 1 Copies'])
     output_set['Print Permalink 2'].append(row['Print Permalink 2'])
+    output_set['Print 2 MMS Id'].append(row['Print 2 MMS Id'])
     output_set['Print 2 Copies'].append(row['Print 2 Copies'])
     output_set['BNC Permalink'].append(row['BNC Permalink'])
     output_set['BNC Copies'].append(row['BNC Copies'])
     output_set['Audiobook Permalink'].append(row['Audiobook Permalink'])
+    output_set['Audiobook MMS Id'].append(row['Audiobook MMS Id'])
     output_set['Everything in Reading List'].append(row['Everything in Reading List'])
     output_set['Date Emailed'].append(row['Date Emailed'])
-    output_set['Note'].append(note)
+    output_set['Email Send Error; Fix and Retry'].append(row['Email Send Error; Fix and Retry'])
+    output_set['Notes'].append(row['Notes'])
+    output_set['Permalink Sent to Beaver Store'].append(row['Permalink Sent to Beaver Store'])
+    output_set['Date Beaver Store Emailed'].append(row['Date Beaver Store Emailed'])
+    output_set['Error Note'].append(note)
     return output_set
 
 
@@ -259,7 +285,8 @@ result_outline = {'Instructor': [],
                   'Courses': []}
 
 # format data output for missing entry excel sheet
-preserve_data = {'Course Number': [],
+preserve_data = {'Error Note': [],
+                 'Course Number': [],
                  'Section': [],
                  'Primary Instructor': [],
                  'Email Address': [],
@@ -267,20 +294,33 @@ preserve_data = {'Course Number': [],
                  'Ed': [],
                  'Year': [],
                  'Author': [],
+                 'ISBN': [],
+                 'Publisher': [],
+                 'Requirement': [],
+                 'Comments': [],
+                 'Max Enrollment': [],
+                 'Actual Enrollment': [],
                  'Found in Catalog?': [],
                  'Ebook Permalink': [],
                  'Ebook Users': [],
+                 'Ebook MMS Id': [],
                  'CDL': [],
                  'Print Permalink 1': [],
+                 'Print 1 MMS Id': [],
                  'Print 1 Copies': [],
                  'Print Permalink 2': [],
+                 'Print 2 MMS Id': [],
                  'Print 2 Copies': [],
                  'BNC Permalink': [],
                  'BNC Copies': [],
                  'Audiobook Permalink': [],
+                 'Audiobook MMS Id': [],
                  'Everything in Reading List': [],
                  'Date Emailed': [],
-                 'Note': []}
+                 'Email Send Error; Fix and Retry': [],
+                 'Notes': [],
+                 'Permalink Sent to Beaver Store': [],
+                 'Date Beaver Store Emailed': []}
 
 # format data output for output excel sheet
 final_data = {'First Name': [],
@@ -294,19 +334,20 @@ for idx, row in data.iterrows():
 
     # checking if the email has already been sent
     if not pd.isna(row['Date Emailed']) and pd.isna(row['Email Send Error; Fix and Retry']):
-        if debug: print(f'Skipping... Already sent ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
+        if debug:
+            print(f'Skipping... Already sent ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
         continue
 
     # checking whether or not it is available
     if row['Found in Catalog?'] == 'no' or pd.isna(row['Found in Catalog?']) or row['Found in Catalog?'] == 'BNC only':
-        if debug: print(f'Skipping... Not in catalog ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
-        # preserve_missed_entry(row, preserve_data)  # saving the entry
+        if debug:
+            print(f'Skipping... Not in catalog ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
         continue
 
     # checking reading list
     if row['Everything in Reading List'] is False or pd.isna(row['Everything in Reading List']):
-        if debug: print(f'Skipping... Not in reading list ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
-        # preserve_missed_entry(row, preserve_data)  # saving the entry
+        if debug:
+            print(f'Skipping... Not in reading list ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
         continue
 
     instructor = str(row['Primary Instructor']).strip()
@@ -318,7 +359,7 @@ for idx, row in data.iterrows():
 
     if instructor == '0' or email == '0' or instructor == '#N/A' or email == '#N/A' or pd.isna(row['Primary Instructor']) or pd.isna(row['Email Address']):
         print(f'Skipping... Missing critical info ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
-        preserve_missed_entry(row, preserve_data, 'Instructor Information')  # saving the entry
+        preserve_missed_entry(row, preserve_data, 'Instructor Information')
         continue
 
     # grabbing the edition number, course code string, and access types/links
@@ -333,7 +374,7 @@ for idx, row in data.iterrows():
             check_num += 1
     if not check_num:
         print(f'Skipping... Missing access information entirely ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
-        preserve_missed_entry(row, preserve_data, 'Access Information')  # saving the entry
+        preserve_missed_entry(row, preserve_data, 'Access Information')
         continue
 
     # compile baseline information + remove blank space
@@ -433,11 +474,8 @@ for instructor in result_outline['Instructor']:
             book_author = book_author.replace('(2)', '')
 
             # removing trailing whitespace
-            while book_title[-1] == ' ':
-                book_title = book_title[:-1]
-
-            while book_author[-1] == ' ':
-                book_author = book_author[:-1]
+            book_title = book_title.strip()
+            book_author = book_author.strip()
 
             # removing odd capitalization after apostrophes
             last_char = ''
@@ -469,8 +507,9 @@ for instructor in result_outline['Instructor']:
 
         email_str += '</ul>'
 
-    # checking whether or not these specific cases have appeared for this professor
-    if scanned_appear: 
+    # checking whether or not these specific cases
+    # have appeared for this professor
+    if scanned_appear:
         email_str += '<br>Scanned books are first come, first serve, for one hour at a time and use a waitlist. There is no limit to the number of renewals if no one is in the waitlist.'
     if scanned_appear and phyiscal_appear:
         email_str += '<br>'
@@ -484,14 +523,15 @@ def write_to_excel(directory, export_data, sheetname):
     '''Exports given data to given directory with given sheetname.'''
     dataframe = pd.DataFrame(data=export_data)
     writer = pd.ExcelWriter(directory, engine='xlsxwriter')
-    dataframe.to_excel(writer, sheet_name=sheetname, startrow=1, header=False, index=False)
-    # workbook = writer.book
+    dataframe.to_excel(writer, sheet_name=sheetname, startrow=1,
+                       header=False, index=False)
     worksheet = writer.sheets[sheetname]
     (max_row, max_col) = dataframe.shape
     column_settings = []
     for header in dataframe.columns:
         column_settings.append({'header': header})
-    worksheet.add_table(0, 0, max_row, max_col - 1, {'columns': column_settings})
+    worksheet.add_table(0, 0, max_row, max_col - 1,
+                        {'columns': column_settings})
     worksheet.set_column(0, max_col - 1, 12)
     writer.close()
 

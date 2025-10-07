@@ -44,7 +44,9 @@ This is the step that directly ties in and directly sends out the emails.
 
 After running the script and getting an output file, as long as the output file is located within a OneDrive / Sharepoint area, the Flow should be able to link to them.
 
-Navigate to the necessary Flow for the output you are processing.
+Navigate to the necessary Flow for the output you are processing. In each case, here are the links to them:
+- `Main Pre-Purchasing`: https://make.powerautomate.com/environments/Default-ce6d05e1-3c5e-4d62-87a8-4c4a2713c113/flows/shared/286b5cad-8ed1-48d6-9358-5ab72464b029/details
+- `Requests`: https://make.powerautomate.com/environments/Default-ce6d05e1-3c5e-4d62-87a8-4c4a2713c113/flows/shared/8f3c9df9-c537-42a0-8696-762511d3cd00/details
 
 To send out the current batch, click on `Edit`, click on the `List rows present in a table` node which should open a menu on the left hand side. Go ahead and click on the `File` input and ensure it is set to the new output that was just generated. After this, change the `Table` input below it to the only selectable table option (usually `Table1`). After setting that, it should be good to go.
 
