@@ -4,7 +4,6 @@ import sys
 import configparser
 
 # configure this script using the .ini file
-# should be easier to work with this way
 full_config = configparser.ConfigParser()
 full_config.read('config.ini')
 config = full_config['DEFAULT']  # reading the DEFAULT section
@@ -158,7 +157,9 @@ def get_access_email(book):
 
     email_return = ''
     scanned_appear = False
-    phyiscal_appear = False
+    physical_appear = False
+    # Added ebook tracking vairable
+    ebook_appear = False
 
     # holding all the strings
     # this makes it easier to iterate through them in the proper order
@@ -172,6 +173,8 @@ def get_access_email(book):
     # ebooks
     if book[0]:
         if book[0][2] is False:
+            # Tracking ebook to make statement in Format Statements area
+            ebook_appear = True
             if (book[0][1] == 'non-perm' or book[0][1] == 'nonperm' or book[0][1] == 'unlimited'):
                 ebook_list += f'<li><a href="{book[0][0]}">Ebook</a>: unlimited simultaneous users</li>'
             else:
@@ -210,7 +213,7 @@ def get_access_email(book):
         print_copies += int(book[2][1])
 
     if print_copies > 0:
-        phyiscal_appear = True
+        physical_appear = True
         copy_str = 'copies' if print_copies != 1 else 'copy'
         print_list += f'<li><a href="{print_link}">Print</a>: {print_copies} {copy_str} in Course Reserves</li>'
 
@@ -222,8 +225,8 @@ def get_access_email(book):
     for listing in access_listings:
         if listing != '':
             email_return += listing
-
-    return email_return, scanned_appear, phyiscal_appear
+    # Returning new variable called ebook_appear
+    return email_return, scanned_appear, physical_appear, ebook_appear
 
 
 def preserve_missed_entry(row, output_set, note):
@@ -242,7 +245,7 @@ def preserve_missed_entry(row, output_set, note):
     output_set['Comments'].append(row['Comments'])
     output_set['Max Enrollment'].append(row['Max Enrollment'])
     output_set['Actual Enrollment'].append(row['Actual Enrollment'])
-    output_set['Found in Catalog?'].append(row['Found in Catalog?'])
+    output_set['Unable to Purchase'].append(row['Unable to Purchase'])
     output_set['Ebook Permalink'].append(row['Ebook Permalink'])
     output_set['Ebook Users'].append(row['Ebook Users'])
     output_set['Ebook MMS Id'].append(row['Ebook MMS Id'])
@@ -300,7 +303,7 @@ preserve_data = {'Error Note': [],
                  'Comments': [],
                  'Max Enrollment': [],
                  'Actual Enrollment': [],
-                 'Found in Catalog?': [],
+                 'Unable to Purchase': [],
                  'Ebook Permalink': [],
                  'Ebook Users': [],
                  'Ebook MMS Id': [],
@@ -336,12 +339,6 @@ for idx, row in data.iterrows():
     if not pd.isna(row['Date Emailed']) and pd.isna(row['Email Send Error; Fix and Retry']):
         if debug:
             print(f'Skipping... Already sent ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
-        continue
-
-    # checking whether or not it is available
-    if row['Found in Catalog?'] == 'no' or pd.isna(row['Found in Catalog?']) or row['Found in Catalog?'] == 'BNC only':
-        if debug:
-            print(f'Skipping... Not in catalog ; Inst: {row['Primary Instructor']}, Book: {row['Title']}')
         continue
 
     # checking reading list
@@ -404,9 +401,6 @@ for idx, row in data.iterrows():
 # for each instructor found
 for instructor in result_outline['Instructor']:
 
-    # ADDING NEW NAME PROCESSING BLOCK
-    # in the future, if naming is changed again, alterations go here
-
     first_name = ''
     last_name = ''
 
@@ -423,14 +417,6 @@ for instructor in result_outline['Instructor']:
         first_name = name_arr[1].strip()
         last_name = name_arr[0].strip()
 
-    # END PROCESSING BLOCK
-
-    # OLD PROCESS
-    # name_arr = instructor.split(', ')
-    # first_name = name_arr[1]
-    # last_name = name_arr[0]
-    # END OLD PROCESS
-
     idx = result_outline['Instructor'].index(instructor)
 
     final_data['First Name'].append(first_name)
@@ -439,7 +425,8 @@ for instructor in result_outline['Instructor']:
 
     email_str = ''
     scanned_appear = False
-    phyiscal_appear = False
+    physical_appear = False
+    ebook_appear = False
 
     # for each course the instructor is under
     for k, course in enumerate(result_outline['Courses'][idx]):
@@ -499,7 +486,7 @@ for instructor in result_outline['Instructor']:
             email_str += f', {book_year}</li>' if not pd.isna(book_year) else '</li>'
 
             # check access types and add new email pieces to the main email string
-            access_email, scanned_appear, phyiscal_appear = get_access_email(book_access)
+            access_email, scanned_appear, physical_appear, ebook_appear = get_access_email(book_access)
             if access_email != '':
                 email_str += f'<ul>{access_email}</ul>'
 
@@ -509,12 +496,18 @@ for instructor in result_outline['Instructor']:
 
     # checking whether or not these specific cases
     # have appeared for this professor
+    # Scanned was updated with new language according to Pre-Purchasing Email Notification Doc
+    # Ebook language was also added according to same doc mentioned above
     if scanned_appear:
-        email_str += '<br>Scanned books are first come, first serve, for one hour at a time and use a waitlist. There is no limit to the number of renewals if no one is in the waitlist.'
-    if scanned_appear and phyiscal_appear:
+        email_str += '<br>Scanned books are first come, first serve, for one hour at a time and use a waitlist. There is no limit to the number of renewals if no one is in the waitlist. If you would like to increase the number of simultaneous users, you may provide additional print copies for us to sequester. For every print copy we sequester, we can allow one online user in accordance with <a href="https://www.controlleddigitallending.org/">controlled digital lending</a> principles.'
+    if scanned_appear and physical_appear:
         email_str += '<br>'
-    if phyiscal_appear:
+    if physical_appear:
         email_str += '<br>Physical copies are available for checkout at the Borrowing & Information desk for three hours at a time.'
+    if (scanned_appear and ebook_appear) or (physical_appear and ebook_appear):
+        email_str += '<br>'
+    if ebook_appear:
+        email_str += '<br>When purchasing ebooks, we prioritize unlimited-user licenses, but these are not always available.'
 
     final_data['Book Output'].append(email_str)
 
